@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2014 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources>
+
+    <string name="app_name">Loopback App</string>
+
+    <string name="buttonPlay_play">Refresh Screen</string>
+    <string name="buttonPlay_pause">Pause</string>
+    <string name="buttonTest_enabled">Start test</string>
+    <string name="buttonTest_disabled">FX Disabled Loopback 2</string>
+    <string name="buttonSave">Save Wavefile</string>
+    <string name="buttonZoomOutFull">Unzoom</string>
+    <string name="buttonZoomOut">Zoom Out</string>
+    <string name="buttonZoomIn"> Zoom In</string>
+
+    <!-- disabled -->
+    <string name="buttonZoomInFull">In Full</string>
+
+    <string name="buttonSettings">Settings</string>
+
+    <string name="labelInfo">Info...</string>
+    <string name="labelSettings">SETTINGS</string>
+    <string name="labelSamplingRate">Sampling Rate</string>
+
+    <!-- spinnerSamplingRate Options -->
+    <string-array name="samplingRate_array">
+        <item>8000</item>
+        <item>11025</item>
+        <item>22050</item>
+        <item>44100</item>
+        <item>48000</item>
+    </string-array>
+
+    <string name="labelAudioThreadType">Audio Thread Type</string>
+
+    <!-- spinnerAudioThreadType Options -->
+    <string-array name="audioThreadType_array">
+        <item>Java</item>
+        <item>native (JNI)</item>
+    </string-array>
+
+    <string name="labelPlaybackBuffer">Playback Buffer (Frames)</string>
+    <string name="labelRecordBuffer">Record Buffer (Frames)</string>
+    <string name="buttonPlaybackDefault">System Default Playback Buffer</string>
+    <string name="buttonRecordDefault">System Default Record Buffer</string>
+
+</resources>

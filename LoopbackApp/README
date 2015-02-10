@@ -1,0 +1,5 @@
+Audio latency testing app using the Dr. Rick O'Rang audio loopback dongle.
+
+References
+https://source.android.com/devices/audio/loopback.html
+https://source.android.com/devices/audio/latency_measure.html#loopback
