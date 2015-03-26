@@ -49,18 +49,24 @@ public class LoopbackAudioThread extends Thread {
     private int mChannelConfigIn = AudioFormat.CHANNEL_IN_MONO;
     private int mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
 
-    Pipe mPipe = new Pipe(65536);
+    //Pipe mPipe = new Pipe(65536);
+    PipeShort mPipe = new PipeShort(65536);
 
     int mMinPlayBufferSizeInBytes = 0;
     int mMinRecordBuffSizeInBytes = 0;
     private int mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
-    private byte[] mAudioByteArrayOut;
+   // private byte[] mAudioByteArrayOut;
+    private short[] mAudioShortArrayOut;
+    int mMinPlayBufferSizeSamples = 0;
+    int mMinRecordBufferSizeSamples = 0;
 
     boolean isPlaying = false;
     private Handler mMessageHandler;
 
     static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED = 992;
-    static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE = 993;
+    static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_ERROR = 993;
+    static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE = 994;
+    static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERROR = 995;
 
     public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes) {
         mSamplingRate = samplingRate;
@@ -84,7 +90,10 @@ public class LoopbackAudioThread extends Thread {
                     + " bytes");
         }
 
-        mAudioByteArrayOut = new byte[mMinPlayBufferSizeInBytes *4];
+        mMinPlayBufferSizeSamples = mMinPlayBufferSizeInBytes /2;
+
+       // mAudioByteArrayOut = new byte[mMinPlayBufferSizeInBytes *4];
+        mAudioShortArrayOut = new short[mMinPlayBufferSizeSamples];
 
         recorderRunnable = new RecorderRunnable(mPipe, mSamplingRate, mChannelConfigIn,
                 mAudioFormat, mMinRecordBuffSizeInBytes);
@@ -112,19 +121,28 @@ public class LoopbackAudioThread extends Thread {
             if (isPlaying)
             {
                 //using PIPE
-                int bytesAvailable = mPipe.availableToRead();
+               // int bytesAvailable = mPipe.availableToRead();
+                int samplesAvailable = mPipe.availableToRead();
 
-                if (bytesAvailable>0 ) {
+//                if (bytesAvailable>0 ) {
+                if (samplesAvailable>0) {
 
-                    int bytesOfInterest = bytesAvailable;
-                    if ( mMinPlayBufferSizeInBytes < bytesOfInterest )
-                        bytesOfInterest = mMinPlayBufferSizeInBytes;
+//                    int bytesOfInterest = bytesAvailable;
+                    int samplesOfInterest = samplesAvailable;
+//                    if ( mMinPlayBufferSizeInBytes < bytesOfInterest )
+//                        bytesOfInterest = mMinPlayBufferSizeInBytes;
+//
+                    if (mMinPlayBufferSizeSamples < samplesOfInterest)
+                        samplesOfInterest = mMinPlayBufferSizeSamples;
 
-                    mPipe.read( mAudioByteArrayOut, 0 , bytesOfInterest);
-                    int bytesAvailableAfter = mPipe.availableToRead();
+//                    mPipe.read( mAudioByteArrayOut, 0 , bytesOfInterest);
+                    int samplesRead = mPipe.read( mAudioShortArrayOut, 0, samplesOfInterest);
+//                    int bytesAvailableAfter = mPipe.availableToRead();
+//                    int samplesAvailableAfter = mPipe.availableToRead();
 
                     //output
-                    mAudioTrack.write(mAudioByteArrayOut, 0, bytesOfInterest);
+//                    mAudioTrack.write(mAudioByteArrayOut, 0, bytesOfInterest);
+                    mAudioTrack.write(mAudioShortArrayOut, 0, samplesRead);
 
                     if ( !recorderRunnable.isStillRoomToRecord()) {
                         //stop
@@ -253,7 +271,7 @@ public class LoopbackAudioThread extends Thread {
     static class RecorderRunnable implements Runnable
     {
         //all recorder things here
-        private final Pipe mPipe;
+        private final PipeShort mPipe;
         private boolean mIsRecording = false;
         private static final Object sRecordingLock = new Object();
 
@@ -264,7 +282,9 @@ public class LoopbackAudioThread extends Thread {
         private int mChannelConfig = AudioFormat.CHANNEL_IN_MONO;
         public int mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
         int mMinRecordBuffSizeInBytes = 0;
-        private byte[] mAudioByteArray;
+        int mMinRecordBuffSizeInSamples = 0;
+       // private byte[] mAudioByteArray;
+        private short[] mAudioShortArray;
         private short[] mAudioTone;
         private int mAudioToneIndex;
 
@@ -273,7 +293,7 @@ public class LoopbackAudioThread extends Thread {
         public double[] mvSamples; //captured samples
         int mSamplesIndex;
 
-        RecorderRunnable(Pipe pipe, int samplingRate, int channelConfig, int audioFormat,
+        RecorderRunnable(PipeShort pipe, int samplingRate, int channelConfig, int audioFormat,
                 int recBufferInBytes)
         {
             mPipe = pipe;
@@ -302,7 +322,10 @@ public class LoopbackAudioThread extends Thread {
                 return false;
             }
 
-            mAudioByteArray = new byte[mMinRecordBuffSizeInBytes / 2];
+            mMinRecordBuffSizeInSamples = mMinRecordBuffSizeInBytes /2;
+
+//            mAudioByteArray = new byte[mMinRecordBuffSizeInBytes / 2];
+            mAudioShortArray = new short[mMinRecordBuffSizeInSamples];
 
             try {
                 mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
@@ -353,8 +376,8 @@ public class LoopbackAudioThread extends Thread {
             synchronized (sRecordingLock) {
                 log("stop recording B");
                 mIsRecording = false;
-                stopRecordingForReal();
             }
+            stopRecordingForReal();
         }
 
         void stopRecordingForReal() {
@@ -372,46 +395,59 @@ public class LoopbackAudioThread extends Thread {
         public void run() {
 
             double phase = 0;
+            double maxval = Math.pow(2, 15);
 
             while (!Thread.interrupted()) {
+                boolean isRecording = false;
+
                 synchronized (sRecordingLock) {
-                    if (mIsRecording && mRecorder != null) {
-                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,
-                                mMinRecordBuffSizeInBytes / 2);
-                        if (nbBytesRead > 0) {
-                            { //injecting the tone
-                                int currentIndex = mSamplesIndex - 100; //offset
-                                for (int i = 0; i < nbBytesRead/2; i++) {
-                                    //   log(" <"+currentIndex +">");
-                                    if (currentIndex >=0 && currentIndex <mAudioTone.length) {
-                                        short value = (short) mAudioTone[currentIndex];
-                                        // log("Injecting: ["+currentIndex+"]="+value);
-                                        //replace capture
-                                        mAudioByteArray[i*2+1] =(byte)( 0xFF &(value >>8));
-                                        mAudioByteArray[i*2] = (byte) ( 0xFF &(value));
+                    isRecording = mIsRecording;
+                }
 
-                                    }
-                                    currentIndex++;
-                                } //for injecting tone
-                            }
-                            mPipe.write(mAudioByteArray, 0, nbBytesRead);
-                            if (isStillRoomToRecord()) { //record to vector
-                                double maxval = Math.pow(2, 15);
-                                for (int i = 0; i < nbBytesRead/2; i++) {
-                                    double value = 0;
-                                    byte ba = mAudioByteArray[i*2+1];
-                                    byte bb = mAudioByteArray[i*2];
-                                    value = (ba << 8) +(bb);
-                                    value = value/maxval;
-                                    if ( mSamplesIndex < mvSamples.length) {
-                                        mvSamples[mSamplesIndex++] = value;
-                                    }
+                if (isRecording && mRecorder != null) {
+                    int nSamplesRead = mRecorder.read(mAudioShortArray, 0, mMinRecordBuffSizeInSamples);
+//                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,
+//                                mMinRecordBuffSizeInBytes / 2);
 
+//                        if (nbBytesRead > 0) {
+                    if(nSamplesRead > 0) {
+                        { //injecting the tone
+                            int currentIndex = mSamplesIndex - 100; //offset
+//                                for (int i = 0; i < nbBytesRead/2; i++) {
+                            for(int i=0; i< nSamplesRead; i++) {
+                                //   log(" <"+currentIndex +">");
+                                if (currentIndex >=0 && currentIndex <mAudioTone.length) {
+//                                        short value = (short) mAudioTone[currentIndex];
+//                                        // log("Injecting: ["+currentIndex+"]="+value);
+//                                        //replace capture
+//                                        mAudioByteArray[i*2+1] =(byte)( 0xFF &(value >>8));
+//                                        mAudioByteArray[i*2] = (byte) ( 0xFF &(value));
+                                    mAudioShortArray[i] = mAudioTone[currentIndex];
                                 }
+                                currentIndex++;
+                            } //for injecting tone
+                        }
+
+                        //mPipe.write(mAudioByteArray, 0, nbBytesRead);
+                        mPipe.write(mAudioShortArray, 0, nSamplesRead);
+                        if (isStillRoomToRecord()) { //record to vector
+
+                            //   for (int i = 0; i < nbBytesRead/2; i++) {
+                            for (int i=0; i< nSamplesRead; i++) {
+                                double value = mAudioShortArray[i];
+//                                    byte ba = mAudioByteArray[i*2+1];
+//                                    byte bb = mAudioByteArray[i*2];
+//                                    value = (ba << 8) +(bb);
+                                value = value/maxval;
+                                if ( mSamplesIndex < mvSamples.length) {
+                                    mvSamples[mSamplesIndex++] = value;
+                                }
+
                             }
                         }
                     }
                 }
+
             }//synchronized
             stopRecording();//close this
         }

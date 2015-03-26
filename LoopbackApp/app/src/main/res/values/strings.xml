@@ -30,7 +30,7 @@
     <!-- disabled -->
     <string name="buttonZoomInFull">In Full</string>
 
-    <string name="buttonSettings">Settings</string>
+    <string name="buttonSettings">Settings bb</string>
 
     <string name="labelInfo">Info...</string>
     <string name="labelSettings">SETTINGS</string>
@@ -55,7 +55,7 @@
 
     <string name="labelPlaybackBuffer">Playback Buffer (Frames)</string>
     <string name="labelRecordBuffer">Record Buffer (Frames)</string>
-    <string name="buttonPlaybackDefault">System Default Playback Buffer</string>
+    <string name="buttonPlaybackDefault">Compute Default Buffers</string>
     <string name="buttonRecordDefault">System Default Record Buffer</string>
 
 </resources>

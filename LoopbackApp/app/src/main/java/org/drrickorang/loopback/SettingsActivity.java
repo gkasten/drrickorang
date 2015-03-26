@@ -44,6 +44,8 @@ OnValueChangeListener {
     Spinner mSpinnerAudioThreadType;
     NumberPicker mNumberPickerPlaybackBuffer;
     NumberPicker mNumberPickerRecordBuffer;
+
+    ArrayAdapter<CharSequence> adapterSamplingRate;
     int bytesPerFrame;
 
     @Override
@@ -57,18 +59,18 @@ OnValueChangeListener {
         int samplingRate = getApp().getSamplingRate();
         //init spinner, etc
         mSpinnerSamplingRate = (Spinner) findViewById(R.id.spinnerSamplingRate);
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+        adapterSamplingRate = ArrayAdapter.createFromResource(this,
                 R.array.samplingRate_array, android.R.layout.simple_spinner_item);
         // Specify the layout to use when the list of choices appears
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapterSamplingRate.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // Apply the adapter to the spinner
-        mSpinnerSamplingRate.setAdapter(adapter);
-        mSpinnerSamplingRate.setOnItemSelectedListener(this);
+        mSpinnerSamplingRate.setAdapter(adapterSamplingRate);
         //set current value
         String currentValue = String.valueOf(samplingRate);
-        int nPosition = adapter.getPosition(currentValue);
-        mSpinnerSamplingRate.setSelection(nPosition);
+        int nPosition = adapterSamplingRate.getPosition(currentValue);
+        mSpinnerSamplingRate.setSelection(nPosition,false);
 
+        mSpinnerSamplingRate.setOnItemSelectedListener(this);
         //spinner native
         int audioThreadType = getApp().getAudioThreadType();
         mSpinnerAudioThreadType = (Spinner) findViewById(R.id.spinnerAudioThreadType);
@@ -78,14 +80,14 @@ OnValueChangeListener {
         adapter2.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // Apply the adapter to the spinner
         mSpinnerAudioThreadType.setAdapter(adapter2);
-        mSpinnerAudioThreadType.setOnItemSelectedListener(this);
         //set current value
 //        String currentValue = String.valueOf(samplingRate);
 //        int nPosition = adapter.getPosition(currentValue);
-        mSpinnerAudioThreadType.setSelection(audioThreadType);
+        mSpinnerAudioThreadType.setSelection(audioThreadType, false);
         if (!getApp().isSafeToUseSles())
             mSpinnerAudioThreadType.setEnabled(false);
 
+        mSpinnerAudioThreadType.setOnItemSelectedListener(this);
         //playback buffer
         mNumberPickerPlaybackBuffer = (NumberPicker) findViewById(R.id.numberpickerPlaybackBuffer);
         mNumberPickerPlaybackBuffer.setMaxValue(8000);
@@ -126,6 +128,13 @@ OnValueChangeListener {
             mNumberPickerRecordBuffer.setEnabled(true);
         else
             mNumberPickerRecordBuffer.setEnabled(false);
+
+
+        int samplingRate = getApp().getSamplingRate();
+
+        String currentValue = String.valueOf(samplingRate);
+        int nPosition = adapterSamplingRate.getPosition(currentValue);
+        mSpinnerSamplingRate.setSelection(nPosition);
     }
      public void onItemSelected(AdapterView<?> parent, View view,
             int pos, long id) {
@@ -143,6 +152,7 @@ OnValueChangeListener {
             case R.id.spinnerAudioThreadType:
                 int audioThreadType = mSpinnerAudioThreadType.getSelectedItemPosition();
                 getApp().setAudioThreadType(audioThreadType);
+                getApp().computeDefaults();
                 settingsChanged();
                 log("AudioThreadType:" + audioThreadType);
                 refresh();
@@ -170,25 +180,46 @@ OnValueChangeListener {
     }
 
     /** Called when the user clicks the button */
-    public void onButtonPlaybackDefault(View view) {
-        int samplingRate = getApp().getSamplingRate();
-        int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT);
-        getApp().setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
+    public void onButtonClick(View view) {
+        //refresh();
+        getApp().computeDefaults();
         refresh();
     }
 
-    public void onButtonRecordDefault(View view) {
-        int samplingRate = getApp().getSamplingRate();
+//    public void onButtonRecordDefault(View view) {
+//        int samplingRate = getApp().getSamplingRate();
+//
+//        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+//                AudioFormat.CHANNEL_IN_MONO,
+//                AudioFormat.ENCODING_PCM_16BIT);
+//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+//
+//        refresh();
+//    }
 
-        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT);
-        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
-
-        refresh();
-    }
+//    private void computeDefaults() {
+//
+////        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA) {
+////            mNumberPickerRecordBuffer.setEnabled(true);
+////        else
+////            mNumberPickerRecordBuffer.setEnabled(false);
+//
+//        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
+//        getApp().setSamplingRate(samplingRate);
+//        int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
+//                AudioFormat.CHANNEL_OUT_MONO,
+//                AudioFormat.ENCODING_PCM_16BIT);
+//        getApp().setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
+//
+//        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+//                AudioFormat.CHANNEL_IN_MONO,
+//                AudioFormat.ENCODING_PCM_16BIT);
+//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+//
+//        log("computed defaults");
+//
+//    }
 
     private LoopbackApplication getApp() {
         return (LoopbackApplication) this.getApplication();
