@@ -40,19 +40,6 @@
                 android:layout_width="fill_parent"
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
-            <TextView
-                android:id="@+id/text2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/labelSamplingRate"/>
-            <Spinner
-                android:id="@+id/spinnerSamplingRate"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"/>
-            <View
-                android:layout_width="fill_parent"
-                android:layout_height="1dp"
-                android:background="@android:color/darker_gray"/>
 
             <TextView
                 android:id="@+id/text3"
@@ -63,6 +50,31 @@
                 android:id="@+id/spinnerAudioThreadType"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"/>
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <Button
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonPlaybackDefault"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonPlaybackDefault"
+                android:onClick="onButtonClick"/>
+
+            <TextView
+                android:id="@+id/text2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelSamplingRate"/>
+
+            <Spinner
+                android:id="@+id/spinnerSamplingRate"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"/>
+
             <View
                 android:layout_width="fill_parent"
                 android:layout_height="1dp"
@@ -77,14 +89,6 @@
                 android:id="@+id/numberpickerPlaybackBuffer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonPlaybackDefault"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonPlaybackDefault"
-                android:onClick="onButtonPlaybackDefault"/>
 
             <View
                 android:layout_width="fill_parent"
@@ -102,13 +106,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
 
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonRecordDefault"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonRecordDefault"
-                android:onClick="onButtonRecordDefault"/>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

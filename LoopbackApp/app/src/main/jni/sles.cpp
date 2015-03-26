@@ -512,7 +512,6 @@ int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
                             currentSample++;
                         }
                     }
-                    //eeeee  (void) sf_writef_short(sndfile, buffer, (sf_count_t) actual);
                     samplesRead +=actual;
                 }
             }

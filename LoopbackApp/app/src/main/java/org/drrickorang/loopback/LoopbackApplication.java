@@ -38,29 +38,37 @@ public class LoopbackApplication extends Application {
     public static final int BYTES_PER_FRAME = 2;
 
     public void setDefaults () {
-        mSamplingRate = 48000;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-            mSamplingRate = Integer.parseInt(value);
-        }
-        if (isSafeToUseSles()) {
+//        mSamplingRate = 48000;
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+//            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+//            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+//            mSamplingRate = Integer.parseInt(value);
+//        }
+//        if (isSafeToUseSles()) {
+//
+//            mAudioThreadType = AUDIO_THREAD_TYPE_NATIVE;
+//            mPlayBufferSizeInBytes = 480;
+//            mPlayBufferSizeInBytes = 480;
+//        }
+//        else {
+//
+//            mAudioThreadType = AUDIO_THREAD_TYPE_JAVA;
+//            mPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(mSamplingRate,
+//                    AudioFormat.CHANNEL_OUT_MONO,
+//                    AudioFormat.ENCODING_PCM_16BIT);
+//
+//            mRecordBuffSizeInBytes = AudioRecord.getMinBufferSize(mSamplingRate,
+//                    AudioFormat.CHANNEL_IN_MONO,
+//                    AudioFormat.ENCODING_PCM_16BIT);
+//        }
 
+        if (isSafeToUseSles()) {
             mAudioThreadType = AUDIO_THREAD_TYPE_NATIVE;
-            mPlayBufferSizeInBytes = 480;
-            mPlayBufferSizeInBytes = 480;
-        }
-        else {
+        } else {
 
             mAudioThreadType = AUDIO_THREAD_TYPE_JAVA;
-            mPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(mSamplingRate,
-                    AudioFormat.CHANNEL_OUT_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT);
-
-            mRecordBuffSizeInBytes = AudioRecord.getMinBufferSize(mSamplingRate,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT);
         }
+        computeDefaults();
     }
 
     int getSamplingRate() {
@@ -93,6 +101,31 @@ public class LoopbackApplication extends Application {
 
     void setRecordBufferSizeInBytes(int recordBufferSizeInBytes) {
         mRecordBuffSizeInBytes = recordBufferSizeInBytes;
+    }
+
+    public void computeDefaults() {
+
+        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
+        setSamplingRate(samplingRate);
+        int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+        setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
+
+        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+        setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+
+
+        if( mAudioThreadType == AUDIO_THREAD_TYPE_NATIVE) {
+            setPlayBufferSizeInBytes(minPlayBufferSizeInBytes/10);  //rule of thumb,
+            // the ideal would be to ask openSLES for these numbers
+            setRecordBufferSizeInBytes(minRecBufferSizeInBytes/10);
+        }
+
+        //log("computed defaults");
+
     }
 
     boolean isSafeToUseSles() {

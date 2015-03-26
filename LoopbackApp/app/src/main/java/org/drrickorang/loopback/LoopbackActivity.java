@@ -34,6 +34,7 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
@@ -59,8 +60,8 @@ public class LoopbackActivity extends Activity {
 
     private static final int SAVE_TO_WAVE_REQUEST = 42;
     private static final int SETTINGS_ACTIVITY_REQUEST_CODE = 44;
-    LoopbackAudioThread audioThread;
-    NativeAudioThread nativeAudioThread;
+    LoopbackAudioThread audioThread = null;
+    NativeAudioThread nativeAudioThread = null;
     private WavePlotView mWavePlotView;
 
     SeekBar  mBarMasterLevel;
@@ -68,41 +69,53 @@ public class LoopbackActivity extends Activity {
     private double [] mWaveData;
     int mSamplingRate;
 
+    Toast toast;
+
     private Handler mMessageHandler = new Handler() {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             switch(msg.what) {
                 case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED:
-                    log("got message java rec complete!!");
-                    Toast.makeText(getApplicationContext(), "Java Recording Started",
-                            Toast.LENGTH_SHORT).show();
+                    log("got message java rec started!!");
+                    showToast("Java Recording Started");
+//                    Toast.makeText(getApplicationContext(), "Java Recording Started",
+//                            Toast.LENGTH_SHORT).show();
                     refreshState();
                     break;
                 case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE:
-                    mWaveData = audioThread.getWaveData();
-                    mSamplingRate = audioThread.mSamplingRate;
-                    log("got message java rec complete!!");
-                    refreshPlots();
-                    refreshState();
-                    Toast.makeText(getApplicationContext(), "Java Recording Completed",
-                            Toast.LENGTH_SHORT).show();
-                    stopAudioThread();
+                    if(audioThread != null) {
+                        mWaveData = audioThread.getWaveData();
+                        mSamplingRate = audioThread.mSamplingRate;
+                        log("got message java rec complete!!");
+                        refreshPlots();
+                        refreshState();
+                        showToast("Java Recording Completed");
+//                        Toast.makeText(getApplicationContext(), "Java Recording Completed",
+//                                Toast.LENGTH_SHORT).show();
+                        stopAudioThread();
+                    }
                     break;
                 case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED:
-                    log("got message native rec complete!!");
-                    Toast.makeText(getApplicationContext(), "Native Recording Started",
-                            Toast.LENGTH_SHORT).show();
+                    log("got message native rec started!!");
+                    showToast("Native Recording Started");
+//                    Toast.makeText(getApplicationContext(), "Native Recording Started",
+//                            Toast.LENGTH_SHORT).show();
                     refreshState();
                     break;
                 case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE:
-                    mWaveData = nativeAudioThread.getWaveData();
-                    mSamplingRate = nativeAudioThread.mSamplingRate;
-                    log("got message native rec complete!!");
-                    refreshPlots();
-                    refreshState();
-                    Toast.makeText(getApplicationContext(), "Native Recording Completed",
-                            Toast.LENGTH_SHORT).show();
-                    stopAudioThread();
+                case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS:
+                    if(nativeAudioThread != null) {
+                        mWaveData = nativeAudioThread.getWaveData();
+                        mSamplingRate = nativeAudioThread.mSamplingRate;
+                        log("got message native rec complete!!");
+                        refreshPlots();
+                        refreshState();
+                        if(msg.what == NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS)
+                            showToast("Native Recording Completed with ERRORS");
+                        else
+                            showToast("Native Recording Completed");
+                        stopAudioThread();
+                    }
                     break;
                 default:
                     log("Got message:"+msg.what);
@@ -179,6 +192,7 @@ public class LoopbackActivity extends Activity {
             }
             nativeAudioThread = null;
         }
+        System.gc();
     }
 
     public void onDestroy() {
@@ -202,6 +216,23 @@ public class LoopbackActivity extends Activity {
         //stop audio system
         stopAudioThread();
     }
+
+    public boolean isBusy() {
+
+        boolean busy = false;
+
+        if( audioThread != null) {
+            if(audioThread.isRunning)
+                busy = true;
+        }
+
+        if( nativeAudioThread != null) {
+            if(nativeAudioThread.isRunning)
+                busy = true;
+        }
+
+        return busy;
+     }
 
     private void restartAudioSystem() {
 
@@ -240,22 +271,31 @@ public class LoopbackActivity extends Activity {
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
-        restartAudioSystem();
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA ) {
-            if (audioThread != null) {
-                audioThread.runTest();
+
+        if( !isBusy()) {
+            restartAudioSystem();
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        }
-        else {
-            if (nativeAudioThread != null) {
-                nativeAudioThread.runTest();
+            if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA) {
+                if (audioThread != null) {
+                    audioThread.runTest();
+                }
+            } else {
+                if (nativeAudioThread != null) {
+                    nativeAudioThread.runTest();
+                }
             }
+        } else {
+            //please wait, or restart application.
+//            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
+//                    Toast.LENGTH_SHORT).show();
+
+            showToast("Test in progress... please wait");
         }
+
     }
 
     /** Called when the user clicks the button */
@@ -275,8 +315,10 @@ public class LoopbackActivity extends Activity {
             startActivityForResult(intent, SAVE_TO_WAVE_REQUEST);
         }
         else {
-            Toast.makeText(getApplicationContext(), "Saving Wave to: "+fileName,
-                    Toast.LENGTH_SHORT).show();
+
+            showToast("Saving Wave to: "+fileName);
+//            Toast.makeText(getApplicationContext(), "Saving Wave to: "+fileName,
+//                    Toast.LENGTH_SHORT).show();
 
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName);
@@ -299,6 +341,7 @@ public class LoopbackActivity extends Activity {
                 resultCode == Activity.RESULT_OK) {
             //new settings!
             log("return from settings!");
+            refreshState();
         }
     }
 
@@ -342,9 +385,16 @@ public class LoopbackActivity extends Activity {
 
     /** Called when the user clicks the button */
     public void onButtonSettings(View view) {
-        Intent mySettingsIntent = new Intent (this, SettingsActivity.class);
-        //send settings
-        startActivityForResult(mySettingsIntent, SETTINGS_ACTIVITY_REQUEST_CODE);
+
+        if(!isBusy()) {
+            Intent mySettingsIntent = new Intent(this, SettingsActivity.class);
+            //send settings
+            startActivityForResult(mySettingsIntent, SETTINGS_ACTIVITY_REQUEST_CODE);
+        } else {
+            showToast("Test in progress... please wait");
+//            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
+//                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     void refreshPlots() {
@@ -391,6 +441,24 @@ public class LoopbackActivity extends Activity {
         Log.v("Recorder", msg);
     }
 
+    public void showToast(String msg) {
+
+        if(toast == null) {
+            toast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT);
+        } else {
+            toast.setText(msg);
+
+        }
+
+
+
+        {
+//            toast.setText(msg);
+            toast.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL, 10, 10);
+            toast.show();
+        }
+    }
+
     private LoopbackApplication getApp() {
         return (LoopbackApplication) this.getApplication();
     }
@@ -404,11 +472,13 @@ public class LoopbackActivity extends Activity {
             boolean status = audioFileOutput.writeData(mWaveData);
 
             if (status) {
-                Toast.makeText(getApplicationContext(), "Finished exporting wave File",
-                        Toast.LENGTH_SHORT).show();
+                showToast("Finished exporting wave File");
+//                Toast.makeText(getApplicationContext(), "Finished exporting wave File",
+//                        Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(getApplicationContext(), "Something failed saving wave file",
-                        Toast.LENGTH_SHORT).show();
+                showToast("Something failed saving wave file");
+//                Toast.makeText(getApplicationContext(), "Something failed saving wave file",
+//                        Toast.LENGTH_SHORT).show();
             }
         }
 
