@@ -29,7 +29,7 @@ JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
   (JNIEnv *, jobject, jint, jint );
 
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesProcessNext
-  (JNIEnv *, jobject , jlong, jdoubleArray );
+  (JNIEnv *, jobject , jlong, jdoubleArray, jlong );
 
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesDestroy
   (JNIEnv *, jobject , jlong );

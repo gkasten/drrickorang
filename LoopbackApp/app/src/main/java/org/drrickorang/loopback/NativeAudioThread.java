@@ -51,7 +51,7 @@ public class NativeAudioThread extends Thread {
     int mMinRecordBuffSizeInBytes = 0;
     private int mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
 
-    private double [] samples = new double[50000];
+//    private double [] samples = new double[50000];
 
     boolean isPlaying = false;
     private Handler mMessageHandler;
@@ -85,7 +85,7 @@ public class NativeAudioThread extends Thread {
 
     //jni calls
     public native long slesInit(int samplingRate, int frameCount);
-    public native int slesProcessNext(long sles_data, double[] samples);
+    public native int slesProcessNext(long sles_data, double[] samples, long offset);
     public native int slesDestroy(long sles_data);
 
     public void run() {
@@ -93,59 +93,116 @@ public class NativeAudioThread extends Thread {
         setPriority(Thread.MAX_PRIORITY);
         isRunning = true;
 
+        //erase output buffer
+        if (mvSamples != null)
+            mvSamples = null;
+
+        //resize
+        int nNewSize = (int)(1.1* mSamplingRate * mSecondsToRun ); //10% more just in case
+        mvSamples = new double[nNewSize];
+        mSamplesIndex = 0; //reset index
+
+        //clear samples
+        for(int i=0; i<nNewSize; i++) {
+            mvSamples[i] = 0;
+        }
+
+        //start playing
+        isPlaying = true;
+
+
+        log(" Started capture test");
+        if (mMessageHandler != null) {
+            Message msg = Message.obtain();
+            msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED;
+            mMessageHandler.sendMessage(msg);
+        }
+
+
+
         log(String.format("about to init, sampling rate: %d, buffer:%d", mSamplingRate,
                 mMinPlayBufferSizeInBytes/2 ));
         long sles_data = slesInit(mSamplingRate, mMinPlayBufferSizeInBytes/2);
-        log(String.format("sles_data = 0x%d",sles_data));
+        log(String.format("sles_data = 0x%X",sles_data));
 
+        if(sles_data == 0 ) {
+            //notify error!!
 
-        mSamplesIndex = 0;
-        int totalSamplesRead = 0;
-        for (int ii=0; ii<mSecondsToRun; ii++) {
-            log(String.format("block %d...",ii));
-            int samplesRead = slesProcessNext(sles_data, samples);
-            totalSamplesRead += samplesRead;
-            log(" ["+ii+"] jni samples read:" + samplesRead + "  currentSampleIndex:"+mSamplesIndex);
-            {
-                for (int jj=0; jj<samplesRead && mSamplesIndex< mvSamples.length; jj++) {
-                    mvSamples[mSamplesIndex++] = samples[jj];
-                }
+            log(" ERROR at JNI initialization");
+            if (mMessageHandler != null) {
+                Message msg = Message.obtain();
+                msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_ERROR;
+                mMessageHandler.sendMessage(msg);
             }
-        }
+        }  else {
 
-        log(String.format(" samplesRead: %d, samplesIndex:%d", totalSamplesRead, mSamplesIndex));
-        log(String.format("about to destroy..."));
-//        int status = slesDestroy(sles_data);
-//        log(String.format("sles delete status: %d", status));
-
-
-
-        runDestroy(sles_data);
-
-        int maxTry = 100;
-        int tryCount=0;
-        //isDestroying = true;
-        while(isDestroying) {
-
+            //wait a little bit...
             try {
-                sleep(10);
+                sleep(10); //just to let it start properly?
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            tryCount++;
 
-            log("destroy try: "+ tryCount);
 
-            if(tryCount>= maxTry) {
-                hasDestroyingErrors = true;
-                log("WARNING: waited for max time to properly destroy JNI.");
-                break;
+            mSamplesIndex = 0;
+            int totalSamplesRead = 0;
+            long offset = 0;
+            for (int ii = 0; ii < mSecondsToRun; ii++) {
+                log(String.format("block %d...", ii));
+                int samplesRead = slesProcessNext(sles_data, mvSamples,offset);
+                totalSamplesRead += samplesRead;
+
+                offset += samplesRead;
+                log(" [" + ii + "] jni samples read:" + samplesRead + "  currentOffset:" + offset);
+
+//                log(" [" + ii + "] jni samples read:" + samplesRead + "  currentSampleIndex:" + mSamplesIndex);
+//                {
+//                    for (int jj = 0; jj < samplesRead && mSamplesIndex < mvSamples.length; jj++) {
+//                        mvSamples[mSamplesIndex++] = samples[jj];
+//                    }
+//                }
             }
-        }
-        log("after destroying");
 
-        endTest();
+            //log(String.format(" samplesRead: %d, samplesIndex:%d", totalSamplesRead, mSamplesIndex));
+            log(String.format(" samplesRead: %d, sampleOffset:%d", totalSamplesRead, offset));
+            log(String.format("about to destroy..."));
+//        int status = slesDestroy(sles_data);
+//        log(String.format("sles delete status: %d", status));
+
+
+            runDestroy(sles_data);
+
+            int maxTry = 20;
+            int tryCount = 0;
+            //isDestroying = true;
+            while (isDestroying) {
+
+                try {
+                    sleep(40);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                tryCount++;
+
+                log("destroy try: " + tryCount);
+
+                if (tryCount >= maxTry) {
+                    hasDestroyingErrors = true;
+                    log("WARNING: waited for max time to properly destroy JNI.");
+                    break;
+                }
+            }
+            log(String.format("after destroying. TotalSamplesRead = %d", totalSamplesRead));
+
+            if(totalSamplesRead==0)
+            {
+                hasDestroyingErrors = true;
+            }
+
+            endTest();
+        }
     }
 
     public void setMessageHandler(Handler messageHandler) {
@@ -162,10 +219,10 @@ public class NativeAudioThread extends Thread {
         Thread thread = new Thread(new Runnable() {
             public void run() {
                 isDestroying = true;
-                log("runnable destroy");
+                log("**Start runnable destroy");
 
                 int status = slesDestroy(local_sles_data);
-                log(String.format("sles delete status: %d", status));
+                log(String.format("**End runnable destroy sles delete status: %d", status));
                 isDestroying = false;
             }
         });
@@ -185,25 +242,7 @@ public class NativeAudioThread extends Thread {
 
     public void runTest() {
 
-        //erase output buffer
-        if (mvSamples != null)
-            mvSamples = null;
 
-        //resize
-        int nNewSize = mSamplingRate * mSecondsToRun; //5 seconds!
-        mvSamples = new double[nNewSize];
-        mSamplesIndex = 0; //reset index
-
-        //start playing
-        isPlaying = true;
-
-
-        log(" Started capture test");
-        if (mMessageHandler != null) {
-            Message msg = Message.obtain();
-            msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED;
-            mMessageHandler.sendMessage(msg);
-        }
     }
 
    public void endTest() {

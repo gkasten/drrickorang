@@ -17,11 +17,14 @@
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <pthread.h>
+#include <android/log.h>
 
 #ifndef _Included_org_drrickorang_loopback_sles
 #define _Included_org_drrickorang_loopback_sles
 
 //struct audio_utils_fifo;
+#define SLES_PRINTF(...)  __android_log_print(ANDROID_LOG_INFO, "sles_jni", __VA_ARGS__);
+
 
 #ifdef __cplusplus
 extern "C" {
