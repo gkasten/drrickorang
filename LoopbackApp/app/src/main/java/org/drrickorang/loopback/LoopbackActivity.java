@@ -78,8 +78,6 @@ public class LoopbackActivity extends Activity {
                 case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED:
                     log("got message java rec started!!");
                     showToast("Java Recording Started");
-//                    Toast.makeText(getApplicationContext(), "Java Recording Started",
-//                            Toast.LENGTH_SHORT).show();
                     refreshState();
                     break;
                 case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE:
@@ -90,16 +88,17 @@ public class LoopbackActivity extends Activity {
                         refreshPlots();
                         refreshState();
                         showToast("Java Recording Completed");
-//                        Toast.makeText(getApplicationContext(), "Java Recording Completed",
-//                                Toast.LENGTH_SHORT).show();
                         stopAudioThread();
                     }
                     break;
                 case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED:
                     log("got message native rec started!!");
                     showToast("Native Recording Started");
-//                    Toast.makeText(getApplicationContext(), "Native Recording Started",
-//                            Toast.LENGTH_SHORT).show();
+                    refreshState();
+                    break;
+                case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_ERROR:
+                    log("got message native rec can't start!!");
+                    showToast("Native Recording Error. Please try again");
                     refreshState();
                     break;
                 case NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE:

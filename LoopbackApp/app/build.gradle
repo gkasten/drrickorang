@@ -11,7 +11,7 @@ android {
 
         ndk {
             moduleName "libloopback"
-            ldLibs "OpenSLES"
+            ldLibs "OpenSLES", "log"
         }
     }
 

@@ -24,21 +24,35 @@
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
   (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount) {
 
-    sles_data * pSles;
-    slesInit(&pSles, samplingRate, frameCount);
+    sles_data * pSles = NULL;
+
+    if( slesInit(&pSles, samplingRate, frameCount) != SLES_FAIL ) {
+
+    return (long)pSles;
+    }
     // FIXME This should be stored as a (long) field in the object,
     //       so that incorrect Java code could not synthesize a bad sles pointer.
-    return (long)pSles;
+    return 0;
 }
 
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesProcessNext
-(JNIEnv *env __unused, jobject obj __unused, jlong sles, jdoubleArray samplesArray) {
+(JNIEnv *env __unused, jobject obj __unused, jlong sles, jdoubleArray samplesArray, jlong offset) {
     sles_data * pSles= (sles_data*) sles;
 
     long maxSamples = (*env)->GetArrayLength(env, samplesArray);
     double *pSamples = (*env)->GetDoubleArrayElements(env, samplesArray,0);
 
-    int samplesRead = slesProcessNext(pSles, pSamples, maxSamples);
+    long availableSamples = maxSamples-offset;
+    double *pCurrentSample = pSamples+offset;
+
+
+
+    //int samplesRead = slesProcessNext(pSles, pSamples, maxSamples);
+
+    SLES_PRINTF("jni slesProcessNext pSles:%p, currentSample %p, availableSamples %d ", pSles, pCurrentSample, availableSamples);
+
+
+    int samplesRead = slesProcessNext(pSles, pCurrentSample, availableSamples);
 
     return samplesRead;
 }

@@ -40,10 +40,15 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount) {
     int status = SLES_FAIL;
     if (ppSles != NULL) {
         sles_data * pSles = (sles_data*)malloc( sizeof (sles_data));
+
+         SLES_PRINTF("malloc %d bytes at %p",sizeof(sles_data), pSles);
+        //__android_log_print(ANDROID_LOG_INFO, "sles_jni", "malloc %d bytes at %p",sizeof(sles_data), pSles);//Or ANDROID_LOG_INFO, ...
         *ppSles = pSles;
         if (pSles != NULL)
         {
+            SLES_PRINTF("creating server. Sampling rate =%d, frame count = %d",samplingRate, frameCount);
             status = slesCreateServer(pSles, samplingRate, frameCount);
+            SLES_PRINTF("slesCreateServer =%d",status);
         }
     }
     return status;
@@ -70,9 +75,11 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
     if (pSles != NULL) {
 
 
+
         SLresult result;
 
         pthread_mutex_lock(&(pSles->mutex));
+      //ee  SLES_PRINTF("<R");
 
         // We should only be called when a recording buffer is done
         assert(pSles->rxFront <= pSles->rxBufCount);
@@ -118,6 +125,7 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
 
 
 
+      //ee  SLES_PRINTF("r>");
         pthread_mutex_unlock(&(pSles->mutex));
 
     } //pSles not null
@@ -132,6 +140,7 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         SLresult result;
 
         pthread_mutex_lock(&(pSles->mutex));
+      //ee  SLES_PRINTF("<P");
 
         // Get the buffer that just finished playing
         assert(pSles->txFront <= pSles->txBufCount);
@@ -182,7 +191,7 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         pSles->txRear = txRearNext;
 
 
-
+    //ee    SLES_PRINTF("p>");
         pthread_mutex_unlock(&(pSles->mutex));
 
     } //pSles not null
@@ -363,6 +372,8 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
         if (SL_RESULT_CONTENT_UNSUPPORTED == result) {
             fprintf(stderr, "Could not create audio player (result %x), check sample rate\n",
                     result);
+            SLES_PRINTF("ERROR: Could not create audio player (result %x), check sample rate\n",
+                                                     result);
             goto cleanup;
         }
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
@@ -429,6 +440,9 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
                 fprintf(stderr, "Could not create audio recorder (result %x), "
                         "check sample rate and channel count\n", result);
                 status = SLES_FAIL;
+
+                SLES_PRINTF("ERROR: Could not create audio recorder (result %x), "
+                                                    "check sample rate and channel count\n", result);
                 goto cleanup;
             }
         }
@@ -479,6 +493,8 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
         status = SLES_SUCCESS;
         cleanup:
 
+        SLES_PRINTF("Finished initialization with status: %d", status);
+
         int xx =1;
 
     }
@@ -487,6 +503,8 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
 
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
     //int status = SLES_FAIL;
+
+    SLES_PRINTF("slesProcessNext: pSles = %p, currentSample: %p,  maxSamples = %d", pSles, pSamples, maxSamples);
 
     int samplesRead = 0;
 
@@ -537,32 +555,84 @@ int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
         result = (*(pSles->recorderBufferQueue))->GetState(pSles->recorderBufferQueue,
                 &recorderBQState);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+        SLES_PRINTF("End of slesProcessNext: pSles = %p, samplesRead = %d, maxSamples= %d", pSles, samplesRead, maxSamples);
     }
     return samplesRead;
 }
 int slesDestroyServer(sles_data *pSles) {
     int status = SLES_FAIL;
 
+     SLES_PRINTF("Start slesDestroyServer: pSles = %p", pSles);
+
     if (pSles != NULL) {
+
+
+
+        if (NULL != pSles->playerObject) {
+
+            SLES_PRINTF("stopping player...");
+            SLPlayItf playerPlay;
+            SLresult result = (*(pSles->playerObject))->GetInterface(pSles->playerObject, SL_IID_PLAY,
+                        &playerPlay);
+
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+            //stop player and recorder if they exist
+             result = (*playerPlay)->SetPlayState(playerPlay, SL_PLAYSTATE_STOPPED);
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+        }
+
+        if (NULL != pSles->recorderObject) {
+
+
+            SLES_PRINTF("stopping recorder...");
+            SLRecordItf recorderRecord;
+            SLresult result = (*(pSles->recorderObject))->GetInterface(pSles->recorderObject, SL_IID_RECORD,
+                        &recorderRecord);
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+
+            result = (*recorderRecord)->SetRecordState(recorderRecord, SL_RECORDSTATE_STOPPED);
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+        }
+
+        usleep(1000);
+
+
         audio_utils_fifo_deinit(&(pSles->fifo));
         delete[] pSles->fifoBuffer;
+
+        SLES_PRINTF("slesDestroyServer 2");
 
         //        if (sndfile != NULL) {
         audio_utils_fifo_deinit(&(pSles->fifo2));
         delete[] pSles->fifo2Buffer;
+
+        SLES_PRINTF("slesDestroyServer 3");
+
         //            sf_close(sndfile);
         //        }
         if (NULL != pSles->playerObject) {
             (*(pSles->playerObject))->Destroy(pSles->playerObject);
         }
+
+        SLES_PRINTF("slesDestroyServer 4");
+
         if (NULL != pSles->recorderObject) {
             (*(pSles->recorderObject))->Destroy(pSles->recorderObject);
         }
+
+        SLES_PRINTF("slesDestroyServer 5");
+
         (*(pSles->outputmixObject))->Destroy(pSles->outputmixObject);
+        SLES_PRINTF("slesDestroyServer 6");
         (*(pSles->engineObject))->Destroy(pSles->engineObject);
+        SLES_PRINTF("slesDestroyServer 7");
 
 
     }
+    SLES_PRINTF("End slesDestroyServer: status = %d", status);
     return status;
 }
 
