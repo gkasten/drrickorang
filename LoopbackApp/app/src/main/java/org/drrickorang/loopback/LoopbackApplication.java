@@ -38,29 +38,6 @@ public class LoopbackApplication extends Application {
     public static final int BYTES_PER_FRAME = 2;
 
     public void setDefaults () {
-//        mSamplingRate = 48000;
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-//            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-//            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-//            mSamplingRate = Integer.parseInt(value);
-//        }
-//        if (isSafeToUseSles()) {
-//
-//            mAudioThreadType = AUDIO_THREAD_TYPE_NATIVE;
-//            mPlayBufferSizeInBytes = 480;
-//            mPlayBufferSizeInBytes = 480;
-//        }
-//        else {
-//
-//            mAudioThreadType = AUDIO_THREAD_TYPE_JAVA;
-//            mPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(mSamplingRate,
-//                    AudioFormat.CHANNEL_OUT_MONO,
-//                    AudioFormat.ENCODING_PCM_16BIT);
-//
-//            mRecordBuffSizeInBytes = AudioRecord.getMinBufferSize(mSamplingRate,
-//                    AudioFormat.CHANNEL_IN_MONO,
-//                    AudioFormat.ENCODING_PCM_16BIT);
-//        }
 
         if (isSafeToUseSles()) {
             mAudioThreadType = AUDIO_THREAD_TYPE_NATIVE;
@@ -114,10 +91,11 @@ public class LoopbackApplication extends Application {
 
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-            int minBufferSize = Integer.parseInt(value);
+            int minBufferSizeInFrames = Integer.parseInt(value);
+            int minBufferSizeInBytes = BYTES_PER_FRAME * minBufferSizeInFrames;
 
-            setPlayBufferSizeInBytes(minBufferSize);
-            setRecordBufferSizeInBytes(minBufferSize);
+            setPlayBufferSizeInBytes(minBufferSizeInBytes);
+            setRecordBufferSizeInBytes(minBufferSizeInBytes);
         } else {
 
             int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
