@@ -107,21 +107,28 @@ public class LoopbackApplication extends Application {
 
         int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
         setSamplingRate(samplingRate);
-        int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT);
-        setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
 
-        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT);
-        setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
 
 
         if( mAudioThreadType == AUDIO_THREAD_TYPE_NATIVE) {
-            setPlayBufferSizeInBytes(minPlayBufferSizeInBytes/10);  //rule of thumb,
-            // the ideal would be to ask openSLES for these numbers
-            setRecordBufferSizeInBytes(minRecBufferSizeInBytes/10);
+
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+            int minBufferSize = Integer.parseInt(value);
+
+            setPlayBufferSizeInBytes(minBufferSize);
+            setRecordBufferSizeInBytes(minBufferSize);
+        } else {
+
+            int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+            setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
+
+            int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+            setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
         }
 
         //log("computed defaults");
