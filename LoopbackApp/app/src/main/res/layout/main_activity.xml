@@ -94,16 +94,20 @@
 
     </LinearLayout>
 
-    <SeekBar
-        android:id="@+id/BarMasterLevel"
-        android:indeterminate="false"
-        android:max="100"
-        android:progress="0"
+    <LinearLayout
+        android:orientation="horizontal"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_marginRight="5dp"
-        android:layout_marginBottom="5px"/>
+        android:layout_height="wrap_content">
+
+        <SeekBar
+            android:id="@+id/BarMasterLevel"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            style="?android:attr/progressBarStyleHorizontal" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_marginTop="0mm"
