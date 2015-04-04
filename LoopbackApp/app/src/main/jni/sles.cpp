@@ -41,6 +41,8 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount) {
     if (ppSles != NULL) {
         sles_data * pSles = (sles_data*)malloc( sizeof (sles_data));
 
+        memset(pSles,0,sizeof(sles_data));
+
          SLES_PRINTF("malloc %d bytes at %p",sizeof(sles_data), pSles);
         //__android_log_print(ANDROID_LOG_INFO, "sles_jni", "malloc %d bytes at %p",sizeof(sles_data), pSles);//Or ANDROID_LOG_INFO, ...
         *ppSles = pSles;
@@ -58,8 +60,11 @@ int slesDestroy(sles_data ** ppSles) {
     if (ppSles != NULL) {
         slesDestroyServer(*ppSles);
 
-        free(*ppSles);
-        *ppSles = 0;
+        if(*ppSles != NULL)
+        {
+            free(*ppSles);
+            *ppSles = 0;
+        }
         status = SLES_SUCCESS;
     }
     return status;
@@ -630,7 +635,10 @@ int slesDestroyServer(sles_data *pSles) {
         (*(pSles->engineObject))->Destroy(pSles->engineObject);
         SLES_PRINTF("slesDestroyServer 7");
 
+//        free(pSles);
+//        pSles=NULL;
 
+        status = SLES_SUCCESS;
     }
     SLES_PRINTF("End slesDestroyServer: status = %d", status);
     return status;
