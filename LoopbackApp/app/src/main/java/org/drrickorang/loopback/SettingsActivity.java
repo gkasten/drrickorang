@@ -19,6 +19,7 @@ package org.drrickorang.loopback;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -34,16 +35,20 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.AdapterView;
 import android.widget.NumberPicker;
 import android.widget.NumberPicker.OnValueChangeListener;
+import android.widget.TextView;
 
 public class SettingsActivity extends Activity implements OnItemSelectedListener,
 OnValueChangeListener {
     /**
      * Called with the activity is first created.
      */
+    Spinner mSpinnerMicSource;
     Spinner mSpinnerSamplingRate;
     Spinner mSpinnerAudioThreadType;
     NumberPicker mNumberPickerPlaybackBuffer;
     NumberPicker mNumberPickerRecordBuffer;
+
+    TextView mTextSettingsInfo;
 
     ArrayAdapter<CharSequence> adapterSamplingRate;
     int bytesPerFrame;
@@ -54,6 +59,25 @@ OnValueChangeListener {
         // Set the layout for this activity. You can find it
         View view = getLayoutInflater().inflate(R.layout.settings_activity, null);
         setContentView(view);
+
+
+        mTextSettingsInfo = (TextView) findViewById(R.id.textSettingsInfo);
+
+
+        int micSource = getApp().getMicSource();
+        mSpinnerMicSource = (Spinner) findViewById(R.id.spinnerMicSource);
+        ArrayAdapter<CharSequence> adapterMicSource = ArrayAdapter.createFromResource(this,
+                R.array.mic_source_array, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        adapterMicSource.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        mSpinnerMicSource.setAdapter(adapterMicSource);
+        //set current value
+//        String currentValue = String.valueOf(samplingRate);
+//        int nPosition = adapter.getPosition(currentValue);
+        mSpinnerMicSource.setSelection(micSource, false);
+        mSpinnerMicSource.setOnItemSelectedListener(this);
+
 
         bytesPerFrame = getApp().BYTES_PER_FRAME;
         int samplingRate = getApp().getSamplingRate();
@@ -135,6 +159,15 @@ OnValueChangeListener {
         String currentValue = String.valueOf(samplingRate);
         int nPosition = adapterSamplingRate.getPosition(currentValue);
         mSpinnerSamplingRate.setSelection(nPosition);
+
+
+        try {
+            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
+            String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
+            mTextSettingsInfo.setText("SETTINGS - Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
     }
      public void onItemSelected(AdapterView<?> parent, View view,
             int pos, long id) {
@@ -155,6 +188,13 @@ OnValueChangeListener {
                 getApp().computeDefaults();
                 settingsChanged();
                 log("AudioThreadType:" + audioThreadType);
+                refresh();
+                break;
+            case R.id.spinnerMicSource:
+                int micSource = mSpinnerMicSource.getSelectedItemPosition();
+                getApp().setMicSource(micSource);
+                settingsChanged();
+                log("mic Source:" + micSource);
                 refresh();
                 break;
         }

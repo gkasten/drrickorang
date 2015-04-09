@@ -26,7 +26,7 @@ extern "C" {
 ////////////////////////
 ////SLE
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
-  (JNIEnv *, jobject, jint, jint );
+  (JNIEnv *, jobject, jint, jint, jint );
 
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesProcessNext
   (JNIEnv *, jobject , jlong, jdoubleArray, jlong );

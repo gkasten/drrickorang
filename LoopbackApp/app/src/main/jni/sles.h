@@ -76,7 +76,7 @@ enum {
     SLES_FAIL = 1,
 } SLES_STATUS_ENUM;
 
-int slesInit( sles_data ** ppSles, int samplingRate, int frameCount);
+int slesInit( sles_data ** ppSles, int samplingRate, int frameCount, int micSource);
 //note the double pointer to properly free the memory of the structure
 int slesDestroy( sles_data ** ppSles);
 
@@ -84,7 +84,7 @@ int slesDestroy( sles_data ** ppSles);
 ///full
 int slesFull(sles_data *pSles);
 
-int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount);
+int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
 int slesDestroyServer(sles_data *pSles);
 

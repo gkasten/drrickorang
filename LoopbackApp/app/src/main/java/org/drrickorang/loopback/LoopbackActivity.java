@@ -80,6 +80,12 @@ public class LoopbackActivity extends Activity {
                     showToast("Java Recording Started");
                     refreshState();
                     break;
+                case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_ERROR:
+                    log("got message java rec can't start!!");
+                    showToast("Java Recording Error. Please try again");
+                    refreshState();
+                    stopAudioThread();
+                    break;
                 case LoopbackAudioThread.FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE:
                     if(audioThread != null) {
                         mWaveData = audioThread.getWaveData();
@@ -243,22 +249,25 @@ public class LoopbackActivity extends Activity {
         int samplingRate = getApp().getSamplingRate();
         int playbackBuffer = getApp().getPlayBufferSizeInBytes();
         int recordBuffer = getApp().getRecordBufferSizeInBytes();
+        int micSource = getApp().getMicSource();
 
         log(" current sampling rate: " + samplingRate);
         stopAudioThread();
 
         //select if java or native audio thread
         if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA ) {
+            int micSourceMapped = getApp().mapMicSource(LoopbackApplication.AUDIO_THREAD_TYPE_JAVA ,micSource);
             audioThread = new LoopbackAudioThread();
             audioThread.setMessageHandler(mMessageHandler);
             audioThread.mSessionId = sessionId;
-            audioThread.setParams(samplingRate, playbackBuffer, recordBuffer);
+            audioThread.setParams(samplingRate, playbackBuffer, recordBuffer,micSourceMapped);
             audioThread.start();
         } else {
+            int micSourceMapped = getApp().mapMicSource(LoopbackApplication.AUDIO_THREAD_TYPE_NATIVE ,micSource);
             nativeAudioThread = new NativeAudioThread();
             nativeAudioThread.setMessageHandler(mMessageHandler);
             nativeAudioThread.mSessionId = sessionId;
-            nativeAudioThread.setParams(samplingRate, playbackBuffer, recordBuffer);
+            nativeAudioThread.setParams(samplingRate, playbackBuffer, recordBuffer,micSourceMapped);
             nativeAudioThread.start();
         }
         mWavePlotView.setSamplingRate( samplingRate);
@@ -302,7 +311,13 @@ public class LoopbackActivity extends Activity {
 
         //create filename with date
         String date = (String) DateFormat.format("yyyy_MM_dd_kk_mm", System.currentTimeMillis());
-        String fileName = "loopback_"+date+".wav";
+        String micSource = getApp().getMicSourceString( getApp().getMicSource());
+        String fileName = "loopback_"+micSource+"_"+date+".wav";
+
+        //MIC
+        //VERSION?
+        //hardware?
+
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             // browser.
@@ -433,7 +448,14 @@ public class LoopbackActivity extends Activity {
                 s.append(" Audio: NATIVE");
                 break;
         }
-        mTextInfo.setText(s.toString());
+
+        //mic source
+        int micSource = getApp().getMicSource();
+        String micSourceName = getApp().getMicSourceString(micSource);
+        if(micSourceName != null) {
+            s.append(String.format(" Mic: %s", micSourceName));
+            mTextInfo.setText(s.toString());
+        }
     }
 
     private static void log(String msg) {

@@ -23,6 +23,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaRecorder;
 import android.os.Build;
 
 public class LoopbackApplication extends Application {
@@ -31,6 +32,7 @@ public class LoopbackApplication extends Application {
     private int mPlayBufferSizeInBytes = 0;
     private int mRecordBuffSizeInBytes = 0;
     private int mAudioThreadType = 0; //0:Java, 1:Native (JNI)
+    private int mMicSource = 3; //maps to MediaRecorder.AudioSource.VOICE_RECOGNITION;
 
     public static final int AUDIO_THREAD_TYPE_JAVA   = 0;
     public static final int AUDIO_THREAD_TYPE_NATIVE = 1;
@@ -63,6 +65,74 @@ public class LoopbackApplication extends Application {
     void setAudioThreadType(int audioThreadType) {
         mAudioThreadType = audioThreadType;
     }
+
+    int getMicSource() { return mMicSource; }
+    int mapMicSource(int threadType, int source) {
+        int mappedSource = 0;
+//        <item>DEFAULT</item>
+//        <item>MIC</item>
+//        <item>CAMCORDER</item>
+//        <item>VOICE_RECOGNITION</item>
+//        <item>VOICE_COMMUNICATION</item>
+
+        if(threadType == AUDIO_THREAD_TYPE_JAVA) {
+
+            switch (source) {
+                default:
+                case 0: //DEFAULT
+                    mappedSource = MediaRecorder.AudioSource.DEFAULT;
+                    break;
+                case 1: //MIC
+                    mappedSource = MediaRecorder.AudioSource.MIC;
+                    break;
+                case 2: //CAMCORDER
+                    mappedSource = MediaRecorder.AudioSource.CAMCORDER;
+                    break;
+                case 3: //VOICE_RECOGNITION
+                    mappedSource = MediaRecorder.AudioSource.VOICE_RECOGNITION;
+                    break;
+                case 4: //VOICE_COMMUNICATION
+                    mappedSource = MediaRecorder.AudioSource.VOICE_COMMUNICATION;
+                    break;
+            }
+        } else if (threadType == AUDIO_THREAD_TYPE_NATIVE ) {
+
+            //taken form OpenSLES_AndroidConfiguration.h
+            switch (source) {
+                default:
+                case 0: //DEFAULT
+                    mappedSource = 0x00; //SL_ANDROID_RECORDING_PRESET_NONE
+                    break;
+                case 1: //MIC
+                    mappedSource = 0x01; //SL_ANDROID_RECORDING_PRESET_GENERIC
+                    break;
+                case 2: //CAMCORDER
+                    mappedSource = 0x02; //SL_ANDROID_RECORDING_PRESET_CAMCORDER
+                    break;
+                case 3: //VOICE_RECOGNITION
+                    mappedSource = 0x03; //SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION
+                    break;
+                case 4: //VOICE_COMMUNICATION
+                    mappedSource = 0x04; //SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION
+                    break;
+            }
+        }
+
+        return mappedSource;
+    }
+
+    String getMicSourceString(int source) {
+
+        String name = null;
+
+        String[] myArray = getResources().getStringArray(R.array.mic_source_array);
+        if(myArray != null && source>=0 && source < myArray.length) {
+            name = myArray[source];
+        }
+        return name;
+    }
+
+    void setMicSource(int micSource) { mMicSource = micSource; }
 
     int getPlayBufferSizeInBytes() {
         return mPlayBufferSizeInBytes;

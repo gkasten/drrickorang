@@ -51,6 +51,8 @@ public class NativeAudioThread extends Thread {
     int mMinRecordBuffSizeInBytes = 0;
     private int mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
 
+    int mMicSource = 0;
+
 //    private double [] samples = new double[50000];
 
     boolean isPlaying = false;
@@ -63,11 +65,13 @@ public class NativeAudioThread extends Thread {
     static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE = 894;
     static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS = 895;
 
-    public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes) {
+    public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes, int micSource) {
         mSamplingRate = samplingRate;
 
         mMinPlayBufferSizeInBytes = playBufferInBytes;
         mMinRecordBuffSizeInBytes = recBufferInBytes;
+
+        mMicSource = micSource;
 
     }
 
@@ -84,7 +88,7 @@ public class NativeAudioThread extends Thread {
     }
 
     //jni calls
-    public native long slesInit(int samplingRate, int frameCount);
+    public native long slesInit(int samplingRate, int frameCount, int micSource);
     public native int slesProcessNext(long sles_data, double[] samples, long offset);
     public native int slesDestroy(long sles_data);
 
@@ -122,7 +126,7 @@ public class NativeAudioThread extends Thread {
 
         log(String.format("about to init, sampling rate: %d, buffer:%d", mSamplingRate,
                 mMinPlayBufferSizeInBytes/2 ));
-        long sles_data = slesInit(mSamplingRate, mMinPlayBufferSizeInBytes/2);
+        long sles_data = slesInit(mSamplingRate, mMinPlayBufferSizeInBytes/2, mMicSource);
         log(String.format("sles_data = 0x%X",sles_data));
 
         if(sles_data == 0 ) {

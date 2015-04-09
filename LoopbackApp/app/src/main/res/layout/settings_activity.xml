@@ -31,10 +31,26 @@
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/text1"
+                android:id="@+id/textSettingsInfo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/labelSettings"/>
+                android:text="@string/labelSettings"
+                android:elegantTextHeight="false" />
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <TextView
+                android:id="@+id/text6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelMicSource"/>
+            <Spinner
+                android:id="@+id/spinnerMicSource"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"/>
 
             <View
                 android:layout_width="fill_parent"

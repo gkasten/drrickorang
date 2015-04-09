@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-int slesInit(sles_data ** ppSles, int samplingRate, int frameCount) {
+int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource) {
     int status = SLES_FAIL;
     if (ppSles != NULL) {
         sles_data * pSles = (sles_data*)malloc( sizeof (sles_data));
@@ -49,7 +49,7 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount) {
         if (pSles != NULL)
         {
             SLES_PRINTF("creating server. Sampling rate =%d, frame count = %d",samplingRate, frameCount);
-            status = slesCreateServer(pSles, samplingRate, frameCount);
+            status = slesCreateServer(pSles, samplingRate, frameCount, micSource);
             SLES_PRINTF("slesCreateServer =%d",status);
         }
     }
@@ -202,7 +202,7 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
     } //pSles not null
 }
 
-int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
+int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource) {
     int status = SLES_FAIL;
 
     if (pSles != NULL) {
@@ -437,10 +437,10 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
         audiosnk.pLocator = &locator_bufferqueue_rx;
         audiosnk.pFormat = &pcm;
         {
-            SLInterfaceID ids_rx[1] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
-            SLboolean flags_rx[1] = {SL_BOOLEAN_TRUE};
+            SLInterfaceID ids_rx[2] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_ANDROIDCONFIGURATION};
+            SLboolean flags_rx[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
             result = (*engineEngine)->CreateAudioRecorder(engineEngine, &(pSles->recorderObject),
-                    &audiosrc, &audiosnk, 1, ids_rx, flags_rx);
+                    &audiosrc, &audiosnk, 2, ids_rx, flags_rx);
             if (SL_RESULT_SUCCESS != result) {
                 fprintf(stderr, "Could not create audio recorder (result %x), "
                         "check sample rate and channel count\n", result);
@@ -452,6 +452,24 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount) {
             }
         }
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+        {
+           /* Get the Android configuration interface which is explicit */
+            SLAndroidConfigurationItf configItf;
+            result = (*(pSles->recorderObject))->GetInterface(pSles->recorderObject, SL_IID_ANDROIDCONFIGURATION, (void*)&configItf);
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+            SLuint32 presetValue = micSource;//SL_ANDROID_RECORDING_PRESET_CAMCORDER;//SL_ANDROID_RECORDING_PRESET_NONE;
+
+            /* Use the configuration interface to configure the recorder before it's realized */
+            if (presetValue != SL_ANDROID_RECORDING_PRESET_NONE) {
+                result = (*configItf)->SetConfiguration(configItf, SL_ANDROID_KEY_RECORDING_PRESET,
+                        &presetValue, sizeof(SLuint32));
+                ASSERT_EQ(SL_RESULT_SUCCESS, result);
+            }
+
+        }
+
         result = (*(pSles->recorderObject))->Realize(pSles->recorderObject, SL_BOOLEAN_FALSE);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
         SLRecordItf recorderRecord;
