@@ -161,13 +161,16 @@ OnValueChangeListener {
         mSpinnerSamplingRate.setSelection(nPosition);
 
 
-        try {
-            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
-            String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
-            mTextSettingsInfo.setText("SETTINGS - Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
+//            String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
+//            mTextSettingsInfo.setText("SETTINGS - Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
+//        } catch (PackageManager.NameNotFoundException e) {
+//            e.printStackTrace();
+//        }
+        String info = getApp().getSystemInfo();
+        mTextSettingsInfo.setText(String.format("SETTINGS - "+info));
+
     }
      public void onItemSelected(AdapterView<?> parent, View view,
             int pos, long id) {

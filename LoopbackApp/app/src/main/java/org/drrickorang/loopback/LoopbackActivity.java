@@ -18,6 +18,8 @@ package org.drrickorang.loopback;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.database.Cursor;
 import android.provider.OpenableColumns;
@@ -37,6 +39,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -46,6 +49,7 @@ import android.database.Cursor;
 import android.os.Handler;
 import android.os.Message;
 
+import java.io.FileOutputStream;
 import java.util.Arrays;
 import java.io.File;
 
@@ -59,6 +63,8 @@ public class LoopbackActivity extends Activity {
     public final static String SETTINGS_OBJECT = "org.drrickorang.loopback.SETTINGS_OBJECT";
 
     private static final int SAVE_TO_WAVE_REQUEST = 42;
+    private static final int SAVE_TO_PNG_REQUEST = 43;
+
     private static final int SETTINGS_ACTIVITY_REQUEST_CODE = 44;
     LoopbackAudioThread audioThread = null;
     NativeAudioThread nativeAudioThread = null;
@@ -310,9 +316,9 @@ public class LoopbackActivity extends Activity {
     public void onButtonSave(View view) {
 
         //create filename with date
-        String date = (String) DateFormat.format("yyyy_MM_dd_kk_mm", System.currentTimeMillis());
+        String date = (String) DateFormat.format("MMddkkmm", System.currentTimeMillis());
         String micSource = getApp().getMicSourceString( getApp().getMicSource());
-        String fileName = "loopback_"+micSource+"_"+date+".wav";
+        String fileName = micSource+"_"+date;
 
         //MIC
         //VERSION?
@@ -320,23 +326,38 @@ public class LoopbackActivity extends Activity {
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+
+
+            Intent intent2 = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent2.addCategory(Intent.CATEGORY_OPENABLE);
+            intent2.setType("image/png");
+
+            intent2.putExtra(Intent.EXTRA_TITLE,fileName+".png"); //suggested filename
+            startActivityForResult(intent2, SAVE_TO_PNG_REQUEST);
+
             // browser.
             Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("audio/wav");
 
-            intent.putExtra(Intent.EXTRA_TITLE,fileName); //suggested filename
+            intent.putExtra(Intent.EXTRA_TITLE,fileName+".wav"); //suggested filename
             startActivityForResult(intent, SAVE_TO_WAVE_REQUEST);
-        }
+
+
+
+                }
         else {
 
-            showToast("Saving Wave to: "+fileName);
+            showToast("Saving Wave to: "+fileName+".wav");
 //            Toast.makeText(getApplicationContext(), "Saving Wave to: "+fileName,
 //                    Toast.LENGTH_SHORT).show();
 
             //save to a given uri... local file?
-            Uri uri = Uri.parse("file://mnt/sdcard/"+fileName);
+            Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
+
             saveToWavefile(uri);
+            Uri uri2 = Uri.parse("file://mnt/sdcard/"+fileName+".png");
+            saveScreenShot(uri2);
         }
     }
 
@@ -351,6 +372,15 @@ public class LoopbackActivity extends Activity {
                 uri = resultData.getData();
                 saveToWavefile(uri);
             }
+        } else if( requestCode == SAVE_TO_PNG_REQUEST && resultCode == Activity.RESULT_OK)  {
+
+            log("got SAVE TO PNG intent back!");
+            Uri uri = null;
+            if (resultData != null) {
+                uri = resultData.getData();
+                saveScreenShot(uri);
+            }
+
         } else if (requestCode == SETTINGS_ACTIVITY_REQUEST_CODE &&
                 resultCode == Activity.RESULT_OK) {
             //new settings!
@@ -454,8 +484,13 @@ public class LoopbackActivity extends Activity {
         String micSourceName = getApp().getMicSourceString(micSource);
         if(micSourceName != null) {
             s.append(String.format(" Mic: %s", micSourceName));
-            mTextInfo.setText(s.toString());
         }
+
+        String info = getApp().getSystemInfo();
+        s.append(" "+info);
+
+        mTextInfo.setText(s.toString());
+
     }
 
     private static void log(String msg) {
@@ -504,4 +539,48 @@ public class LoopbackActivity extends Activity {
         }
 
     }
+
+    void saveScreenShot(Uri uri) {
+
+        boolean status = false;
+        ParcelFileDescriptor parcelFileDescriptor = null;
+        FileOutputStream outputStream = null;
+        try {
+            parcelFileDescriptor = getApplicationContext().getContentResolver().openFileDescriptor(uri, "w");
+
+            FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+            outputStream= new FileOutputStream(fileDescriptor);
+
+            log("Done creating output stream");
+
+            LinearLayout LL = (LinearLayout) findViewById(R.id.linearLayoutMain);
+
+            View v = LL.getRootView();
+            v.setDrawingCacheEnabled(true);
+            Bitmap b = v.getDrawingCache();
+            //BitmapDrawable bitmapDrawable = new BitmapDrawable(b);
+
+            //save
+            b.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+//            int sampleCount = data.length;
+//            writeHeader(sampleCount);
+//            writeDataBufer(data);
+//            mOutputStream.close();
+            status = true;
+            parcelFileDescriptor.close();
+        } catch (Exception e) {
+            outputStream = null;
+            log("Failed to open png" +e);
+        } finally {
+            try {
+                if (parcelFileDescriptor != null) {
+                    parcelFileDescriptor.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                log("Error closing ParcelFile Descriptor");
+            }
+        }
+    }
+
 }

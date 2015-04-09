@@ -18,6 +18,7 @@ package org.drrickorang.loopback;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -181,6 +182,21 @@ public class LoopbackApplication extends Application {
 
         //log("computed defaults");
 
+    }
+
+    String getSystemInfo() {
+
+        String info = null;
+
+        try {
+            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
+            String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
+            info = String.format("Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return info;
     }
 
     boolean isSafeToUseSles() {
