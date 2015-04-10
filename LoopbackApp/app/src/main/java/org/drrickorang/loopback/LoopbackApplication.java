@@ -160,9 +160,14 @@ public class LoopbackApplication extends Application {
 
         if( mAudioThreadType == AUDIO_THREAD_TYPE_NATIVE) {
 
-            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-            int minBufferSizeInFrames = Integer.parseInt(value);
+            int minBufferSizeInFrames;
+            if (isSafeToUseGetProperty()) {
+                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+                minBufferSizeInFrames = Integer.parseInt(value);
+            } else {
+                minBufferSizeInFrames = 1024;
+            }
             int minBufferSizeInBytes = BYTES_PER_FRAME * minBufferSizeInFrames;
 
             setPlayBufferSizeInBytes(minBufferSizeInBytes);
@@ -201,6 +206,10 @@ public class LoopbackApplication extends Application {
 
     boolean isSafeToUseSles() {
         return  Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD;
+    }
+
+    boolean isSafeToUseGetProperty() {
+        return  Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1;
     }
 
     @Override
