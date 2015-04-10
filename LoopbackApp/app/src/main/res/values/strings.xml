@@ -32,6 +32,16 @@
 
     <string name="buttonSettings">Settings</string>
 
+
+    <string name="labelMicSource">Microphone Source</string>
+    <string-array name="mic_source_array">
+        <item>DEFAULT</item>
+        <item>MIC</item>
+        <item>CAMCORDER</item>
+        <item>VOICE_RECOGNITION</item>
+        <item>VOICE_COMMUNICATION</item>
+    </string-array>
+
     <string name="labelInfo">Info...</string>
     <string name="labelSettings">SETTINGS</string>
     <string name="labelSamplingRate">Sampling Rate</string>
@@ -55,7 +65,8 @@
 
     <string name="labelPlaybackBuffer">Playback Buffer (Frames)</string>
     <string name="labelRecordBuffer">Record Buffer (Frames)</string>
-    <string name="buttonPlaybackDefault">Compute Default Buffers</string>
+    <string name="buttonPlaybackDefault">Compute Default Settings</string>
     <string name="buttonRecordDefault">System Default Record Buffer</string>
+
 
 </resources>

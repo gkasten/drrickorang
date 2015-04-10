@@ -22,11 +22,11 @@
 
 /////
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
-  (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount) {
+  (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource) {
 
     sles_data * pSles = NULL;
 
-    if( slesInit(&pSles, samplingRate, frameCount) != SLES_FAIL ) {
+    if( slesInit(&pSles, samplingRate, frameCount, micSource) != SLES_FAIL ) {
 
     return (long)pSles;
     }

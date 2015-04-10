@@ -35,6 +35,7 @@ import  android.os.Message;
 public class LoopbackAudioThread extends Thread {
 
     public boolean isRunning = false;
+ //   private boolean isInitialized = false;
     double twoPi = 6.28318530718;
 
     public AudioTrack mAudioTrack;
@@ -59,6 +60,7 @@ public class LoopbackAudioThread extends Thread {
     private short[] mAudioShortArrayOut;
     int mMinPlayBufferSizeSamples = 0;
     int mMinRecordBufferSizeSamples = 0;
+    int mMicSource = 0;
 
     boolean isPlaying = false;
     private Handler mMessageHandler;
@@ -68,11 +70,12 @@ public class LoopbackAudioThread extends Thread {
     static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE = 994;
     static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERROR = 995;
 
-    public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes) {
+    public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes, int micSource) {
         mSamplingRate = samplingRate;
 
         mMinPlayBufferSizeInBytes = playBufferInBytes;
         mMinRecordBuffSizeInBytes = recBufferInBytes;
+        mMicSource = micSource;
 
     }
 
@@ -96,7 +99,7 @@ public class LoopbackAudioThread extends Thread {
         mAudioShortArrayOut = new short[mMinPlayBufferSizeSamples];
 
         recorderRunnable = new RecorderRunnable(mPipe, mSamplingRate, mChannelConfigIn,
-                mAudioFormat, mMinRecordBuffSizeInBytes);
+                mAudioFormat, mMinRecordBuffSizeInBytes, mMicSource);
         mRecorderThread = new Thread(recorderRunnable);
         mRecorderThread.start();
 
@@ -114,58 +117,66 @@ public class LoopbackAudioThread extends Thread {
         double fr = 440.0f;
         double phase = 0.0;
 
-        isPlaying = false;
-        isRunning = true;
+        if(recorderRunnable != null && mAudioTrack != null) {
 
-        while (isRunning) {
-            if (isPlaying)
-            {
-                //using PIPE
-               // int bytesAvailable = mPipe.availableToRead();
-                int samplesAvailable = mPipe.availableToRead();
+
+            isPlaying = false;
+            isRunning = true;
+
+            while (isRunning) {
+                if (isPlaying) {
+                    //using PIPE
+                    // int bytesAvailable = mPipe.availableToRead();
+                    int samplesAvailable = mPipe.availableToRead();
 
 //                if (bytesAvailable>0 ) {
-                if (samplesAvailable>0) {
+                    if (samplesAvailable > 0) {
 
 //                    int bytesOfInterest = bytesAvailable;
-                    int samplesOfInterest = samplesAvailable;
+                        int samplesOfInterest = samplesAvailable;
 //                    if ( mMinPlayBufferSizeInBytes < bytesOfInterest )
 //                        bytesOfInterest = mMinPlayBufferSizeInBytes;
 //
-                    if (mMinPlayBufferSizeSamples < samplesOfInterest)
-                        samplesOfInterest = mMinPlayBufferSizeSamples;
+                        if (mMinPlayBufferSizeSamples < samplesOfInterest)
+                            samplesOfInterest = mMinPlayBufferSizeSamples;
 
 //                    mPipe.read( mAudioByteArrayOut, 0 , bytesOfInterest);
-                    int samplesRead = mPipe.read( mAudioShortArrayOut, 0, samplesOfInterest);
+                        int samplesRead = mPipe.read(mAudioShortArrayOut, 0, samplesOfInterest);
 //                    int bytesAvailableAfter = mPipe.availableToRead();
 //                    int samplesAvailableAfter = mPipe.availableToRead();
 
-                    //output
+                        //output
 //                    mAudioTrack.write(mAudioByteArrayOut, 0, bytesOfInterest);
-                    mAudioTrack.write(mAudioShortArrayOut, 0, samplesRead);
+                        mAudioTrack.write(mAudioShortArrayOut, 0, samplesRead);
 
-                    if ( !recorderRunnable.isStillRoomToRecord()) {
-                        //stop
-                        endTest();
+                        if (!recorderRunnable.isStillRoomToRecord()) {
+                            //stop
+                            endTest();
 
+                        }
                     }
-                }
 
-            }
-            else
-            {
-                if (isRunning)
-                {
-                    try {
-                        sleep(1);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                } else {
+                    if (isRunning) {
+                        try {
+                            sleep(1);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
+
                 }
-
+            } //end is running
+        } else {
+            //something went wrong, didn't run
+            log("Loopback Audio Thread couldn't run!");
+            if (mMessageHandler != null) {
+                Message msg = Message.obtain();
+                msg.what = FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_ERROR;
+                mMessageHandler.sendMessage(msg);
             }
-        } //end is running
 
+        }
     }
 
     public void setMessageHandler(Handler messageHandler) {
@@ -178,33 +189,36 @@ public class LoopbackAudioThread extends Thread {
 
     public void runTest() {
 
-        // start test
-        if (mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING )
-        {
-            log("...run test, but still playing...");
-            endTest();
-        }
-        else
-        {
-            //erase output buffer
-            if (mvSamples != null)
-                mvSamples = null;
+        if(isRunning) {
+            // start test
+            if (mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
+                log("...run test, but still playing...");
+                endTest();
+            } else {
+                //erase output buffer
+                if (mvSamples != null)
+                    mvSamples = null;
 
-            //resize
-            int nNewSize = mSamplingRate * 2; //5 seconds!
-            mvSamples = new double[nNewSize];
-            mSamplesIndex = 0; //reset index
+                //resize
+                int nNewSize = mSamplingRate * 2; //5 seconds!
+                mvSamples = new double[nNewSize];
+                mSamplesIndex = 0; //reset index
 
-            //start playing
-            isPlaying = true;
-            mAudioTrack.play();
-            recorderRunnable.startRecording(mvSamples);
+                //start playing
+                isPlaying = true;
+                mAudioTrack.play();
+                boolean status = recorderRunnable.startRecording(mvSamples);
 
-            log(" Started capture test");
-            if (mMessageHandler != null) {
-                Message msg = Message.obtain();
-                msg.what = FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED;
-                mMessageHandler.sendMessage(msg);
+                log(" Started capture test");
+                if (mMessageHandler != null) {
+                    Message msg = Message.obtain();
+                    msg.what = FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED;
+
+                    if(!status)
+                        msg.what = FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_ERROR;
+
+                    mMessageHandler.sendMessage(msg);
+                }
             }
         }
    }
@@ -277,6 +291,8 @@ public class LoopbackAudioThread extends Thread {
 
         private AudioRecord mRecorder;
 
+
+
         private int mSelectedRecordSource = MediaRecorder.AudioSource.MIC;
         public int mSamplingRate = 48000;
         private int mChannelConfig = AudioFormat.CHANNEL_IN_MONO;
@@ -294,13 +310,14 @@ public class LoopbackAudioThread extends Thread {
         int mSamplesIndex;
 
         RecorderRunnable(PipeShort pipe, int samplingRate, int channelConfig, int audioFormat,
-                int recBufferInBytes)
+                int recBufferInBytes, int micSource)
         {
             mPipe = pipe;
             mSamplingRate = samplingRate;
             mChannelConfig = channelConfig;
             mAudioFormat = audioFormat;
             mMinRecordBuffSizeInBytes = recBufferInBytes;
+            mSelectedRecordSource = micSource;
         }
 
         //init the recording device
@@ -331,6 +348,7 @@ public class LoopbackAudioThread extends Thread {
                 mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
                         mChannelConfig, mAudioFormat, 2 * mMinRecordBuffSizeInBytes);
             } catch (IllegalArgumentException e) {
+                e.printStackTrace();
                 return false;
             }
             if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
@@ -345,7 +363,7 @@ public class LoopbackAudioThread extends Thread {
             return true;
         }
 
-        void startRecording(double vCapture[]) {
+        boolean startRecording(double vCapture[]) {
             synchronized (sRecordingLock) {
                 mIsRecording = true;
             }
@@ -353,8 +371,8 @@ public class LoopbackAudioThread extends Thread {
             mvSamples = vCapture;
             mSamplesIndex = 0;
 
-            boolean successful = initRecord();
-            if (successful) {
+            boolean status = initRecord();
+            if (status) {
                 log("Ready to go.");
                 startRecordingForReal();
             } else {
@@ -363,6 +381,8 @@ public class LoopbackAudioThread extends Thread {
                     mIsRecording = false;
                 }
             }
+
+            return status;
         }
 
         void startRecordingForReal() {
