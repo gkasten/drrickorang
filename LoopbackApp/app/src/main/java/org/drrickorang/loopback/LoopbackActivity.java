@@ -72,7 +72,10 @@ public class LoopbackActivity extends Activity {
 
     SeekBar  mBarMasterLevel;
     TextView mTextInfo;
+    TextView mTextViewCurrentLevel;
+    TextView mTextViewEstimatedLatency;
     private double [] mWaveData;
+    private Correlation mCorrelation = new Correlation();
     int mSamplingRate;
 
     Toast toast;
@@ -96,6 +99,7 @@ public class LoopbackActivity extends Activity {
                     if(audioThread != null) {
                         mWaveData = audioThread.getWaveData();
                         mSamplingRate = audioThread.mSamplingRate;
+                        mCorrelation.computeCorrelation(mWaveData,mSamplingRate);
                         log("got message java rec complete!!");
                         refreshPlots();
                         refreshState();
@@ -118,6 +122,7 @@ public class LoopbackActivity extends Activity {
                     if(nativeAudioThread != null) {
                         mWaveData = nativeAudioThread.getWaveData();
                         mSamplingRate = nativeAudioThread.mSamplingRate;
+                        mCorrelation.computeCorrelation(mWaveData, mSamplingRate);
                         log("got message native rec complete!!");
                         refreshPlots();
                         refreshState();
@@ -166,16 +171,20 @@ public class LoopbackActivity extends Activity {
             }
 
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress,boolean fromUser) {
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 
                 AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
                 am.setStreamVolume(AudioManager.STREAM_MUSIC,
                         progress, 0);
                 refreshState();
-                log("Changed stream volume to: "+progress);
+                log("Changed stream volume to: " + progress);
             }
         });
         mWavePlotView = (WavePlotView) findViewById(R.id.viewWavePlot);
+
+        mTextViewCurrentLevel = (TextView) findViewById(R.id.textViewCurrentLevel);
+
+        mTextViewEstimatedLatency = (TextView) findViewById(R.id.textViewEstimatedLatency);
         refreshState();
     }
 
@@ -316,14 +325,9 @@ public class LoopbackActivity extends Activity {
     public void onButtonSave(View view) {
 
         //create filename with date
-        String date = (String) DateFormat.format("MMddkkmm", System.currentTimeMillis());
+        String date = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
         String micSource = getApp().getMicSourceString( getApp().getMicSource());
         String fileName = micSource+"_"+date;
-
-        //MIC
-        //VERSION?
-        //hardware?
-
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 
@@ -332,7 +336,7 @@ public class LoopbackActivity extends Activity {
             intent2.addCategory(Intent.CATEGORY_OPENABLE);
             intent2.setType("image/png");
 
-            intent2.putExtra(Intent.EXTRA_TITLE,fileName+".png"); //suggested filename
+            intent2.putExtra(Intent.EXTRA_TITLE, fileName + ".png"); //suggested filename
             startActivityForResult(intent2, SAVE_TO_PNG_REQUEST);
 
             // browser.
@@ -340,17 +344,11 @@ public class LoopbackActivity extends Activity {
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("audio/wav");
 
-            intent.putExtra(Intent.EXTRA_TITLE,fileName+".wav"); //suggested filename
+            intent.putExtra(Intent.EXTRA_TITLE, fileName + ".wav"); //suggested filename
             startActivityForResult(intent, SAVE_TO_WAVE_REQUEST);
 
-
-
-                }
-        else {
-
+        } else {
             showToast("Saving Wave to: "+fileName+".wav");
-//            Toast.makeText(getApplicationContext(), "Saving Wave to: "+fileName,
-//                    Toast.LENGTH_SHORT).show();
 
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
@@ -364,7 +362,7 @@ public class LoopbackActivity extends Activity {
     @Override
     public void onActivityResult(int requestCode, int resultCode,
             Intent resultData) {
-        log("ActivityResult request: "+requestCode + "  result:" + resultCode);
+        log("ActivityResult request: " + requestCode + "  result:" + resultCode);
         if (requestCode == SAVE_TO_WAVE_REQUEST && resultCode == Activity.RESULT_OK) {
             log("got SAVE TO WAV intent back!");
             Uri uri = null;
@@ -458,7 +456,10 @@ public class LoopbackActivity extends Activity {
         int currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
         mBarMasterLevel.setProgress(currentVolume);
 
-        log("refreshState 2");
+        mTextViewCurrentLevel.setText(String.format("Level: %d/%d",currentVolume,
+                mBarMasterLevel.getMax()));
+
+        log("refreshState 2b");
 
         //get info
         int samplingRate = getApp().getSamplingRate();
@@ -487,9 +488,15 @@ public class LoopbackActivity extends Activity {
         }
 
         String info = getApp().getSystemInfo();
-        s.append(" "+info);
+        s.append(" " + info);
 
         mTextInfo.setText(s.toString());
+
+        if(mCorrelation.mEstimatedLatencyMs>0.0001) {
+            mTextViewEstimatedLatency.setText(String.format("Latency: %.2f ms", mCorrelation.mEstimatedLatencyMs));
+        } else {
+            mTextViewEstimatedLatency.setText(String.format("Latency: ----"));
+        }
 
     }
 
