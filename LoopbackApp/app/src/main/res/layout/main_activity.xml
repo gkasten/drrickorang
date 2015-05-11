@@ -111,6 +111,25 @@
     </LinearLayout>
 
     <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Current Level"
+            android:id="@+id/textViewCurrentLevel"/>
+
+        <TextView
+            android:layout_width="180dp"
+            android:layout_height="wrap_content"
+            android:text="latency"
+            android:id="@+id/textViewEstimatedLatency"
+            android:textStyle="bold"/>
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_marginTop="0mm"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
