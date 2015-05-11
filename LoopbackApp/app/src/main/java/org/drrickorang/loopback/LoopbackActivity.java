@@ -19,20 +19,15 @@ package org.drrickorang.loopback;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.database.Cursor;
-import android.provider.OpenableColumns;
 import android.provider.MediaStore;
 import android.os.ParcelFileDescriptor;
 
 import java.io.FileDescriptor;
 
-import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioTrack;
 //import android.media.MediaPlayer;
-import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.util.Log;
@@ -41,16 +36,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
-import android.widget.Spinner;
 import android.widget.Toast;
 import android.widget.TextView;
 import android.content.Context;
-import android.database.Cursor;
 import android.os.Handler;
 import android.os.Message;
 
 import java.io.FileOutputStream;
-import java.util.Arrays;
 import java.io.File;
 
 import android.os.Build;
@@ -69,8 +61,8 @@ public class LoopbackActivity extends Activity {
     LoopbackAudioThread audioThread = null;
     NativeAudioThread nativeAudioThread = null;
     private WavePlotView mWavePlotView;
-    private String currentTime = "IncorrectTime";  // The time the plot is acquired
-    private String filePathWav;
+    private String mCurrentTime = "IncorrectTime";  // The time the plot is acquired
+    private String mFilePathWav;
 
     SeekBar  mBarMasterLevel; //drag the volumn
     TextView mTextInfo;
@@ -105,7 +97,7 @@ public class LoopbackActivity extends Activity {
                         log("got message java rec complete!!");
                         refreshPlots();
                         refreshState();
-                        currentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
+                        mCurrentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
                         showToast("Java Recording Completed");
                         stopAudioThread();
                     }
@@ -130,10 +122,10 @@ public class LoopbackActivity extends Activity {
                         refreshPlots();
                         refreshState();
                         if(msg.what == NativeAudioThread.FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS) {
-                            currentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
+                            mCurrentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
                             showToast("Native Recording Completed with ERRORS");
                         } else {
-                            currentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
+                            mCurrentTime = (String) DateFormat.format("MMddkkmmss", System.currentTimeMillis());
                             showToast("Native Recording Completed");
                         }
                         stopAudioThread();
@@ -331,7 +323,7 @@ public class LoopbackActivity extends Activity {
     public void onButtonSave(View view) {
 
         //create filename with date
-        String date = currentTime;  // the time the plot is acquired
+        String date = mCurrentTime;  // the time the plot is acquired
         String micSource = getApp().getMicSourceString( getApp().getMicSource());
         String fileName = micSource+"_"+date;
 
@@ -360,7 +352,7 @@ public class LoopbackActivity extends Activity {
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
             File file = new File(getPath(uri));
-            filePathWav = file.getAbsolutePath();
+            mFilePathWav = file.getAbsolutePath();
 
 
 
@@ -381,7 +373,7 @@ public class LoopbackActivity extends Activity {
                 uri = resultData.getData();
 
                 File file = new File(getPath(uri));
-                filePathWav = file.getAbsolutePath();
+                mFilePathWav = file.getAbsolutePath();
 
                 saveToWavefile(uri);
             }
@@ -486,7 +478,7 @@ public class LoopbackActivity extends Activity {
         int currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
         mBarMasterLevel.setProgress(currentVolume);
 
-        mTextViewCurrentLevel.setText(String.format("Level: %d/%d",currentVolume,
+        mTextViewCurrentLevel.setText(String.format("Level: %d/%d", currentVolume,
                 mBarMasterLevel.getMax()));
 
         log("refreshState 2b");
@@ -565,7 +557,7 @@ public class LoopbackActivity extends Activity {
             boolean status = audioFileOutput.writeData(mWaveData);
 
             if (status) {
-                showToast("Finished exporting wave File " + filePathWav);
+                showToast("Finished exporting wave File " + mFilePathWav);
 //                Toast.makeText(getApplicationContext(), "Finished exporting wave File",
 //                        Toast.LENGTH_SHORT).show();
             } else {
