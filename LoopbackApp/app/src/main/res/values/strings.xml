@@ -26,6 +26,7 @@
     <string name="buttonZoomOutFull">Unzoom</string>
     <string name="buttonZoomOut">Zoom Out</string>
     <string name="buttonZoomIn"> Zoom In</string>
+    <string name="buttonAbout">About</string>
 
     <!-- disabled -->
     <string name="buttonZoomInFull">In Full</string>
@@ -44,6 +45,7 @@
 
     <string name="labelInfo">Info...</string>
     <string name="labelSettings">SETTINGS</string>
+    <string name="labelAbout">About</string>
     <string name="labelSamplingRate">Sampling Rate</string>
 
     <!-- spinnerSamplingRate Options -->

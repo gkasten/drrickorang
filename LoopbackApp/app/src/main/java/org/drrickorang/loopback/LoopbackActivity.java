@@ -34,6 +34,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Toast;
@@ -58,6 +59,7 @@ public class LoopbackActivity extends Activity {
     private static final int SAVE_TO_PNG_REQUEST = 43;
 
     private static final int SETTINGS_ACTIVITY_REQUEST_CODE = 44;
+    private static final int ABOUT_ACTIVITY_REQUEST_CODE = 45;
     LoopbackAudioThread audioThread = null;
     NativeAudioThread nativeAudioThread = null;
     private WavePlotView mWavePlotView;
@@ -324,7 +326,7 @@ public class LoopbackActivity extends Activity {
 
         //create filename with date
         String date = mCurrentTime;  // the time the plot is acquired
-        String micSource = getApp().getMicSourceString( getApp().getMicSource());
+        String micSource = getApp().getMicSourceString(getApp().getMicSource());
         String fileName = micSource+"_"+date;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -427,6 +429,8 @@ public class LoopbackActivity extends Activity {
         mWavePlotView.refreshGraph();
     }
 
+
+
     /** Called when the user clicks the button */
     public void onButtonZoomIn(View view) {
 
@@ -446,6 +450,14 @@ public class LoopbackActivity extends Activity {
         mWavePlotView.refreshGraph();
     }
 */
+
+    public void onButtonAbout(View view) {
+        if(!isBusy()) {
+            Intent aboutIntent = new Intent(this, AboutActivity.class);
+            startActivity(aboutIntent);
+        } else
+            showToast("Test in progress... please wait");
+    }
 
     /** Called when the user clicks the button */
     public void onButtonSettings(View view) {
