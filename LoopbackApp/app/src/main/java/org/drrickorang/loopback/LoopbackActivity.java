@@ -24,6 +24,7 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.os.ParcelFileDescriptor;
 
+
 import java.io.FileDescriptor;
 
 import android.media.AudioManager;
@@ -353,10 +354,16 @@ public class LoopbackActivity extends Activity {
 
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
-            File file = new File(getPath(uri));
-            mFilePathWav = file.getAbsolutePath();
 
+            String temp = getPath1(uri);
+            // for some devices it cannot find the path
+            if (temp != null) {
+                File file = new File(temp);
+                mFilePathWav = file.getAbsolutePath();
+            } else {
+                mFilePathWav = "";
 
+            }
 
             saveToWavefile(uri);
             Uri uri2 = Uri.parse("file://mnt/sdcard/"+fileName+".png");
@@ -374,8 +381,13 @@ public class LoopbackActivity extends Activity {
             if (resultData != null) {
                 uri = resultData.getData();
 
-                File file = new File(getPath(uri));
-                mFilePathWav = file.getAbsolutePath();
+                String temp = getPath1(uri);
+                if (temp != null) {
+                    File file = new File(temp);
+                    mFilePathWav = file.getAbsolutePath();
+                } else {
+                    mFilePathWav = "";
+                }
 
                 saveToWavefile(uri);
             }
@@ -397,19 +409,24 @@ public class LoopbackActivity extends Activity {
         }
     }
 
-    // method to get the file path from uri
-    public String getPath(Uri uri)
+    // method to get the file path from uri. Doesn't work for all devices
+    public String getPath1(Uri uri)
     {
-        String[] p = {MediaStore.Images.Media.DATA};
-        Cursor cursor1 = getContentResolver().query(uri, p, null, null, null);
-        if (cursor1 == null)
-            return null;
+        String[] projection = {MediaStore.Images.Media.DATA};
+        Cursor cursor1 = getContentResolver().query(uri, projection, null, null, null);
+        if (cursor1 == null) {
+            // cursor1.close();
+            return uri.getPath();
+        }
+
         int ColumnIndex = cursor1.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
         cursor1.moveToFirst();
         String path = cursor1.getString(ColumnIndex);
         cursor1.close();
         return path;
     }
+
+
 
     /** Called when the user clicks the button */
     public void onButtonZoomOutFull(View view) {
