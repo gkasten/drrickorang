@@ -92,6 +92,13 @@
             android:layout_height="wrap_content"
             android:text="@string/buttonZoomOutFull"
             android:onClick="onButtonZoomOutFull"/>
+        <Button
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/buttonAbout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/buttonAbout"
+            android:onClick="onButtonAbout"/>
 
     </LinearLayout>
 
