@@ -476,6 +476,15 @@ public class LoopbackActivity extends Activity {
             showToast("Test in progress... please wait");
     }
 
+
+    public void onButtonLatency(View view) {
+        if(!isBusy()) {
+            Intent aboutIntent = new Intent(this, LatencyActivity.class);
+            startActivity(aboutIntent);
+        } else
+            showToast("Test in progress... please wait");
+    }
+
     /** Called when the user clicks the button */
     public void onButtonSettings(View view) {
 

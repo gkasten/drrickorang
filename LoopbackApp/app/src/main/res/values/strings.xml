@@ -27,6 +27,7 @@
     <string name="buttonZoomOut">Zoom Out</string>
     <string name="buttonZoomIn"> Zoom In</string>
     <string name="buttonAbout">About</string>
+    <string name="buttonLatency">Latency Plot</string>
 
     <!-- disabled -->
     <string name="buttonZoomInFull">In Full</string>
