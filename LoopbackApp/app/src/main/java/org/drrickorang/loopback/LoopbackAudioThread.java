@@ -430,10 +430,10 @@ public class LoopbackAudioThread extends Thread {
                 }
 
                 //long mStartTime = System.nanoTime();
-                //WaitTimeRecord.collectLatency();
+                //WaitTimeRecord.collectLatency(); //FIXME should it be here,
 
                 if (isRecording && mRecorder != null) {
-                    LatencyRecord.collectLatency();
+                    LatencyRecord.collectLatency(); // or here?
 
                     int nSamplesRead = mRecorder.read(mAudioShortArray, 0, mMinRecordBuffSizeInSamples);
 //                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,

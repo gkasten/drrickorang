@@ -49,6 +49,8 @@ import java.io.File;
 
 import android.os.Build;
 
+import org.drrickorang.loopback.LatencyRecord;
+
 public class LoopbackActivity extends Activity {
     /**
      * Member Vars
@@ -292,12 +294,16 @@ public class LoopbackActivity extends Activity {
         //first refresh
         refreshState();
     }
+    private void resetLatencyRecord() {
+        LatencyRecord.resetRecord();
+    }
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
 
         if( !isBusy()) {
             restartAudioSystem();
+            resetLatencyRecord();
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -479,6 +485,9 @@ public class LoopbackActivity extends Activity {
 
     public void onButtonLatency(View view) {
         if(!isBusy()) {
+            HistogramView.setLatencyArray(LatencyRecord.getLatencyArray());
+            HistogramView.setMaxLatency(LatencyRecord.getMaxLatency());
+
             Intent aboutIntent = new Intent(this, LatencyActivity.class);
             startActivity(aboutIntent);
         } else

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Notification;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 
 import java.lang.reflect.AccessibleObject;
@@ -12,23 +13,20 @@ import java.lang.reflect.AccessibleObject;
  * Created by ninatai on 5/13/15.
  */
 public class LatencyActivity extends Activity {
+
+    private HistogramView mHistogramView;
+    private TextView mTextView;
+
     public void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
 
-        Intent intent = getIntent();
-        String message = "Audio latency testing app using the Dr. Rick O'Rang audio loopback dongle.\n\n" +
-                "Author: Ricardo Garcia\n\n" +
-                "Open source project on: https://github.com/gkasten/drrickorang\n\n" +
-                "References: https://source.android.com/devices/audio/loopback.html\n" +
-                "https://source.android.com/devices/audio/latency_measure.html#loopback";
+        View view = getLayoutInflater().inflate(R.layout.latency_activity, null);
+        setContentView(view);
+        mTextView = (TextView) findViewById(R.id.histogramInfo);
+        mHistogramView = (HistogramView) findViewById(R.id.viewHistogram);
 
-        // Create the text view
-        TextView textView = new TextView(this);
-        textView.setTextSize(20);
-        textView.setText(message);
 
-        // Set the text view as the activity layout
-        setContentView(textView);
+
     }
 }

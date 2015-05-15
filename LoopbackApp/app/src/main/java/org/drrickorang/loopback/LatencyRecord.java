@@ -8,14 +8,17 @@ import android.util.Log;
 
 import org.drrickorang.loopback.LoopbackAudioThread.RecorderRunnable;
 
+import java.util.Arrays;
 import java.util.HashMap;
 
 
+// TODO remember that after one record, set mPreviousTime back to zero -> done in onButtonTest
 public class LatencyRecord {
     private static long mPreviousTime = 0;
     private static long mCurrentTime;
-    private static final int range = 1002;
+    private static final int range = 102; //TODO adjust this value
     private static int mMaxLatency = 0;
+    private static boolean exceedRange = false;
 
     private static int[] mJavaLatency = new int[range];
 
@@ -25,7 +28,7 @@ public class LatencyRecord {
         // if = 0 it's the first time the thread runs, so don't record the interval
         if (mPreviousTime != 0 && mCurrentTime != 0) {
             long diffInNano = mCurrentTime - mPreviousTime;
-            int diffInMilli = (int) Math.ceil(((double) (diffInNano / 1000))); // round up
+            int diffInMilli = (int) Math.ceil(((double) (diffInNano / 1000000))); // round up
 
             if (diffInMilli > mMaxLatency) {
                 mMaxLatency = diffInMilli;
@@ -45,6 +48,32 @@ public class LatencyRecord {
 
         mPreviousTime = mCurrentTime;
     }
+
+    // Check if max latency exceeds the range of latencies that are going to be displayed on histogram
+    public static void setExceedRange() {
+        if (mMaxLatency > (range - 2)) {
+            exceedRange = true;
+        } else {
+            exceedRange = false;
+        }
+    }
+
+    public static void resetRecord() {
+        mPreviousTime = 0;
+        Arrays.fill(mJavaLatency, 0);
+    }
+
+    public static int[] getLatencyArray() {
+        return mJavaLatency;
+
+    }
+
+    public static int getMaxLatency() {
+        return mMaxLatency;
+    }
+
+
+
 
     private static void errorLog(String msg) {
         Log.e("LatencyTracker", msg);
