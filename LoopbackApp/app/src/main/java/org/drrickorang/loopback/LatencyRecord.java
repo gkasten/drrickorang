@@ -15,7 +15,7 @@ import java.util.HashMap;
 // TODO remember that after one record, set mPreviousTime back to zero -> done in onButtonTest
 public class LatencyRecord {
     private static long mPreviousTime = 0;
-    private static long mCurrentTime;
+    private static long mCurrentTime = 0;
     private static final int range = 102; //TODO adjust this value
     private static int mMaxLatency = 0;
     private static boolean exceedRange = false;
@@ -26,9 +26,10 @@ public class LatencyRecord {
     public static void collectLatency()  {
         mCurrentTime = System.nanoTime();
         // if = 0 it's the first time the thread runs, so don't record the interval
+        // FIXME discard the first few records
         if (mPreviousTime != 0 && mCurrentTime != 0) {
             long diffInNano = mCurrentTime - mPreviousTime;
-            int diffInMilli = (int) Math.ceil(((double) (diffInNano / 1000000))); // round up
+            int diffInMilli = (int) Math.ceil(( ((double)diffInNano / 1000000))); // round up
 
             if (diffInMilli > mMaxLatency) {
                 mMaxLatency = diffInMilli;
@@ -60,7 +61,10 @@ public class LatencyRecord {
 
     public static void resetRecord() {
         mPreviousTime = 0;
+        mCurrentTime = 0;
         Arrays.fill(mJavaLatency, 0);
+        mMaxLatency = 0;
+
     }
 
     public static int[] getLatencyArray() {

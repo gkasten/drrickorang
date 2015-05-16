@@ -417,11 +417,17 @@ public class LoopbackAudioThread extends Thread {
             }
 
         }
+
+        private void resetLatencyRecord() {
+            LatencyRecord.resetRecord();
+        }
+
         public void run() {
 
             double phase = 0;
             double maxval = Math.pow(2, 15);
 
+            resetLatencyRecord();
             while (!Thread.interrupted()) {
                 boolean isRecording = false;
 
@@ -430,10 +436,10 @@ public class LoopbackAudioThread extends Thread {
                 }
 
                 //long mStartTime = System.nanoTime();
-                //WaitTimeRecord.collectLatency(); //FIXME should it be here,
+                //LatencyRecord.collectLatency(); //FIXME should it be here,
 
                 if (isRecording && mRecorder != null) {
-                    LatencyRecord.collectLatency(); // or here?
+                   LatencyRecord.collectLatency(); // or here?
 
                     int nSamplesRead = mRecorder.read(mAudioShortArray, 0, mMinRecordBuffSizeInSamples);
 //                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,

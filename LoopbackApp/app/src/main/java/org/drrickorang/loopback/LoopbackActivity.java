@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.database.Cursor;
+import android.os.Trace;
 import android.provider.MediaStore;
 import android.os.ParcelFileDescriptor;
 
@@ -302,6 +303,7 @@ public class LoopbackActivity extends Activity {
     public void onButtonTest(View view) {
 
         if( !isBusy()) {
+            Trace.beginSection("Processing TestButton");
             restartAudioSystem();
             resetLatencyRecord();
             try {
@@ -318,6 +320,7 @@ public class LoopbackActivity extends Activity {
                     nativeAudioThread.runTest();
                 }
             }
+            Trace.endSection();
         } else {
             //please wait, or restart application.
 //            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
