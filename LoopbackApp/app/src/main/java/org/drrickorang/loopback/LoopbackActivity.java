@@ -21,7 +21,6 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.database.Cursor;
-import android.os.Trace;
 import android.provider.MediaStore;
 import android.os.ParcelFileDescriptor;
 
@@ -36,7 +35,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Toast;
@@ -49,8 +47,6 @@ import java.io.FileOutputStream;
 import java.io.File;
 
 import android.os.Build;
-
-import org.drrickorang.loopback.BufferPeriod;
 
 public class LoopbackActivity extends Activity {
     /**
@@ -69,6 +65,7 @@ public class LoopbackActivity extends Activity {
     private WavePlotView mWavePlotView;
     private String mCurrentTime = "IncorrectTime";  // The time the plot is acquired
     private String mFilePathWav;
+
 
     SeekBar  mBarMasterLevel; //drag the volumn
     TextView mTextInfo;
@@ -301,9 +298,7 @@ public class LoopbackActivity extends Activity {
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
-
         if( !isBusy()) {
-            //Trace.beginSection("Processing TestButton");
             restartAudioSystem();
             resetBufferPeriodRecord();
             try {
@@ -320,7 +315,7 @@ public class LoopbackActivity extends Activity {
                     nativeAudioThread.runTest();
                 }
             }
-            //Trace.endSection();
+
         } else {
             //please wait, or restart application.
 //            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
@@ -364,8 +359,8 @@ public class LoopbackActivity extends Activity {
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
 
-            String temp = getPath1(uri);
             // for some devices it cannot find the path
+            String temp = getPath1(uri);
             if (temp != null) {
                 File file = new File(temp);
                 mFilePathWav = file.getAbsolutePath();
@@ -406,7 +401,6 @@ public class LoopbackActivity extends Activity {
             Uri uri = null;
             if (resultData != null) {
                 uri = resultData.getData();
-
                 saveScreenShot(uri);
             }
 
@@ -558,7 +552,7 @@ public class LoopbackActivity extends Activity {
         if(micSourceName != null) {
             s.append(String.format(" Mic: %s", micSourceName));
         }
-         s.append(" App");
+        s.append(" App");
 
         String info = getApp().getSystemInfo();
         s.append(" " + info);
@@ -648,6 +642,7 @@ public class LoopbackActivity extends Activity {
 //            mOutputStream.close();
             status = true;
             parcelFileDescriptor.close();
+            v.setDrawingCacheEnabled(false);
         } catch (Exception e) {
             outputStream = null;
             log("Failed to open png" +e);
@@ -661,6 +656,7 @@ public class LoopbackActivity extends Activity {
                 log("Error closing ParcelFile Descriptor");
             }
         }
+
     }
 
 }
