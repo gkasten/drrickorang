@@ -79,7 +79,7 @@ public class Correlation {
 
         int currentIndex = 0;
         double nextGroup = groupSize;
-        Trace.beginSection("Processing Correlation");
+        //Trace.beginSection("Processing Correlation");
         for (int i = 0; i<N && currentIndex<mBlockSize; i++) {
 
             if(i> nextGroup) { //advanced to next group.
@@ -92,7 +92,7 @@ public class Correlation {
             }
             dataDownsampled[currentIndex] += Math.abs(data[i]);
         }
-        Trace.endSection();
+        //Trace.endSection();
 
 
         status = true;

@@ -28,7 +28,7 @@ import android.util.Log;
 
 import android.os.Handler;
 import  android.os.Message;
-import org.drrickorang.loopback.LatencyRecord;
+import org.drrickorang.loopback.BufferPeriod;
 
 /**
  * A thread/audio track based audio synth.
@@ -419,7 +419,7 @@ public class LoopbackAudioThread extends Thread {
         }
 
         private void resetLatencyRecord() {
-            LatencyRecord.resetRecord();
+            BufferPeriod.resetRecord();
         }
 
         public void run() {
@@ -436,10 +436,9 @@ public class LoopbackAudioThread extends Thread {
                 }
 
                 //long mStartTime = System.nanoTime();
-                //LatencyRecord.collectLatency(); //FIXME should it be here,
 
                 if (isRecording && mRecorder != null) {
-                   LatencyRecord.collectLatency(); // or here?
+                    BufferPeriod.collectBufferPeriod();
 
                     int nSamplesRead = mRecorder.read(mAudioShortArray, 0, mMinRecordBuffSizeInSamples);
 //                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,

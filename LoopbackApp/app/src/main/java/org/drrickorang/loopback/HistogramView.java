@@ -15,14 +15,18 @@ public class HistogramView extends View {
     private Paint mHistPaint;
     private Paint mTextPaint;
     private Paint mLinePaint;
+    private Paint mXLabelPaint;
 
     private static int[] mData;
-    private static int mMaxLatency = 0;
+    private static int mMaxBufferPeriod = 0;
     private static boolean mExceedRange = false;
     private int mBase = 10; //base of logarithm
     private int mNumberOfXLabel = 4;
-    private int mTextSize = 30;
+    private int mYLabelSize = 30;
+    private int mXLabelSize = 22;
     private int mLineWidth = 3;
+    private int mHistogramInterval = 2; // separate each beam in the histogram by such amount
+    int mExtraYMargin = 5; // the extra margin between y labels and y-axis
 
     public HistogramView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -37,7 +41,11 @@ public class HistogramView extends View {
 
         mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTextPaint.setColor(Color.RED);
-        mTextPaint.setTextSize(mTextSize);
+        mTextPaint.setTextSize(mYLabelSize);
+
+        mXLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mXLabelPaint.setColor(Color.BLACK);
+        mXLabelPaint.setTextSize(mXLabelSize);
 
         mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mLinePaint.setColor(Color.BLACK);
@@ -54,16 +62,15 @@ public class HistogramView extends View {
             return;
         }
 
-        if (mMaxLatency != 0) {
-
+        if (mMaxBufferPeriod != 0) {
 
             // the range of latencies that's going to be displayed on histogram
             int range;
-            if (mMaxLatency > arrayLength - 1) {
+            if (mMaxBufferPeriod > arrayLength - 1) {
                 range = arrayLength;
                 mExceedRange = true;
             } else {
-                range = mMaxLatency + 1;
+                range = mMaxBufferPeriod + 1;
                 mExceedRange = false;
             }
 
@@ -75,68 +82,82 @@ public class HistogramView extends View {
             int right = this.getRight();
             int bottom = this.getBottom();
 
-
             // calculate the max frequency among all latencies
-            int maxLatencyFreq = 0;
+            int maxBufferPeriodFreq = 0;
             for (int i = 1; i < arrayLength; i++) {
-                if (mData[i] > maxLatencyFreq) {
-                    maxLatencyFreq = mData[i];
+                if (mData[i] > maxBufferPeriodFreq) {
+                    maxBufferPeriodFreq = mData[i];
                 }
             }
 
-
-            if (maxLatencyFreq == 0) {
+            if (maxBufferPeriodFreq == 0) {
                 return;
             }
 
-            // find the closest order of 10 according to maxLatencyFreq
+            // find the closest order of "mBase" according to maxBufferPeriodFreq
             int order = 0;
-            while (Math.pow(mBase, order) < maxLatencyFreq) {
+            while (Math.pow(mBase, order) < maxBufferPeriodFreq) {
                 order += 1;
             }
-            float height =( (float) (bottom - mTextSize) / (order + 1)); // height for one decade
+            float height =( (float) (bottom - mXLabelSize - mLineWidth) / (order + 1)); // height for one decade
 
-
-
-
-
-            // TODO add x labels
-            int totalXLabel = mNumberOfXLabel + 1; // last label is for the last beam
 
             // y labels
             String[] yLabels = new String[order+2]; // will store {"0", "1", "10", "100", ...} for base = 10
             yLabels[0] = "0";
-            canvas.drawText(yLabels[0], 0, bottom - mTextSize - mLineWidth, mTextPaint);
+            int yStartPoint = bottom - mXLabelSize - mLineWidth;
+            canvas.drawText(yLabels[0], 0, yStartPoint, mTextPaint);
             int currentValue = 1;
             for (int i = 1; i <= (order + 1); i++)
             {
                 yLabels[i] = Integer.toString(currentValue);
-                // FIXME since no margin added, can't show the top y label (100) -> fixed. now it display lower by amount of textsize
-                canvas.drawText(yLabels[i], 0, bottom - (i * height), mTextPaint);  // for the third argument,  + mTextSize - mTextSize cancels out
-                currentValue *= 10;
+                // Label is displayed at a height that's lower than it should be by the amount of "mYLabelSize"
+                canvas.drawText(yLabels[i], 0, yStartPoint - (i * height) + mYLabelSize, mTextPaint);
+                currentValue *= mBase;
 
             }
+
+
             // draw x axis
-            canvas.drawLine(0, bottom - mTextSize, right, bottom - mTextSize, mLinePaint);
+            canvas.drawLine(0, bottom - mXLabelSize, right, bottom - mXLabelSize, mLinePaint);
 
             // draw y axis
             int yMargin = getTextWidth(yLabels[order+1], mTextPaint);
-            int extraYMargin = 5;
-            canvas.drawLine(yMargin + extraYMargin, bottom, yMargin + extraYMargin, 0, mLinePaint);
+            canvas.drawLine(yMargin + mExtraYMargin, bottom, yMargin + mExtraYMargin, 0, mLinePaint);
+
+            // width of each beam in the histogram
+            float width =  ((float) (right - yMargin - mExtraYMargin - mLineWidth - range * mHistogramInterval) / range);
+
+            // draw x labels
+            String[] xLabels = new String[mNumberOfXLabel];
+            int xLabelInterval = (range - 2) / mNumberOfXLabel;
+            xLabels[0] = "0";       // first label is for 0
+            canvas.drawText(xLabels[0], yMargin - getTextWidth(xLabels[0], mXLabelPaint), bottom, mXLabelPaint);
+
+            int xStartPoint = yMargin + mExtraYMargin + mLineWidth;  // position where first beam is placed on x-axis
+            for (int i = 1; i < mNumberOfXLabel; i++) {
+                xLabels[i] = Integer.toString(i * xLabelInterval);
+                canvas.drawText(xLabels[i], xStartPoint + (xLabelInterval * i * (width + mHistogramInterval)), bottom, mXLabelPaint);
+            }
+
+            String lastXLabel;      // last label is for the last beam
+            if (mExceedRange) {
+                lastXLabel = Integer.toString(range - 1) + "+";
+            } else {
+                lastXLabel = Integer.toString(range - 1);
+            }
+            canvas.drawText(lastXLabel, right - getTextWidth(lastXLabel, mXLabelPaint) - 1, bottom, mXLabelPaint);
 
 
-            float width =  ((float) (right - yMargin - extraYMargin - mLineWidth) / range); // width of each beam in the histogram
-
-            float currentLeft = yMargin + extraYMargin + mLineWidth; // FIXME there's an extra 1 pixel split, not sure why
+            // draw the histogram
+            float currentLeft = yMargin + mExtraYMargin + mLineWidth; // FIXME there's an extra 1 pixel split, not sure why
             float currentTop;
             float currentRight;
-            // TODO separate each beam
-            // draw the histogram
-            mData[0] = 1;
-            mData[range-1] = 1;
-            int currentBottom = bottom - mTextSize - mLineWidth;
+            int currentBottom = bottom - mXLabelSize - mLineWidth;
+
             for (int i = 0; i < range; i++) {
                 currentRight = currentLeft + width;
+
                 // calculate the height of the beam
                 if (mData[i] == 0) {
                     currentTop = currentBottom;
@@ -146,17 +167,13 @@ public class HistogramView extends View {
                 }
 
                 canvas.drawRect(currentLeft, currentTop, currentRight, currentBottom, mHistPaint);
-                currentLeft = currentRight;
+                currentLeft = currentRight + mHistogramInterval;
             }
-
-
-            
-
-
 
         }
 
     }
+
 
     // get the width of a certain string, using a certain paint
     public int getTextWidth(String text, Paint paint) {
@@ -170,8 +187,9 @@ public class HistogramView extends View {
         invalidate();
     }
 
+
     // Copy data into internal buffer
-    public static void setLatencyArray(int[] pData) {
+    public static void setBufferPeriodArray(int[] pData) {
         if (mData == null || pData.length != mData.length) {
             mData = new int[pData.length];
         }
@@ -179,8 +197,8 @@ public class HistogramView extends View {
         // postInvalidate();
     }
 
-    public static void setMaxLatency(int latency) {
-        mMaxLatency = latency;
+    public static void setMaxBufferPeriod(int BufferPeriod) {
+        mMaxBufferPeriod = BufferPeriod;
     }
 
 }

@@ -50,7 +50,7 @@ import java.io.File;
 
 import android.os.Build;
 
-import org.drrickorang.loopback.LatencyRecord;
+import org.drrickorang.loopback.BufferPeriod;
 
 public class LoopbackActivity extends Activity {
     /**
@@ -295,17 +295,17 @@ public class LoopbackActivity extends Activity {
         //first refresh
         refreshState();
     }
-    private void resetLatencyRecord() {
-        LatencyRecord.resetRecord();
+    private void resetBufferPeriodRecord() {
+        BufferPeriod.resetRecord();
     }
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
 
         if( !isBusy()) {
-            Trace.beginSection("Processing TestButton");
+            //Trace.beginSection("Processing TestButton");
             restartAudioSystem();
-            resetLatencyRecord();
+            resetBufferPeriodRecord();
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -320,7 +320,7 @@ public class LoopbackActivity extends Activity {
                     nativeAudioThread.runTest();
                 }
             }
-            Trace.endSection();
+            //Trace.endSection();
         } else {
             //please wait, or restart application.
 //            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
@@ -486,12 +486,12 @@ public class LoopbackActivity extends Activity {
     }
 
 
-    public void onButtonLatency(View view) {
+    public void onButtonBufferPeriod(View view) {
         if(!isBusy()) {
-            HistogramView.setLatencyArray(LatencyRecord.getLatencyArray());
-            HistogramView.setMaxLatency(LatencyRecord.getMaxLatency());
+            HistogramView.setBufferPeriodArray(BufferPeriod.getBufferPeriodArray());
+            HistogramView.setMaxBufferPeriod(BufferPeriod.getMaxBufferPeriod());
 
-            Intent aboutIntent = new Intent(this, LatencyActivity.class);
+            Intent aboutIntent = new Intent(this, BufferPeriodActivity.class);
             startActivity(aboutIntent);
         } else
             showToast("Test in progress... please wait");
