@@ -298,6 +298,18 @@ public class LoopbackActivity extends Activity {
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
+        int samplingRate = getApp().getSamplingRate();
+        int playbackBuffer = getApp().getPlayBufferSizeInBytes()/getApp().BYTES_PER_FRAME;
+        int recordBuffer = getApp().getRecordBufferSizeInBytes()/getApp().BYTES_PER_FRAME;
+        int micSource = getApp().getMicSource();
+        String micSourceName = getApp().getMicSourceString(micSource);
+        int audioThreadType = getApp().getAudioThreadType();
+        log("On button test sampling rate: " + samplingRate);
+        log("On button test playbackBuffer: " + playbackBuffer);
+        log("On button test recordBuffer: " + recordBuffer);
+        log("On button test micSource Name: " + micSourceName);
+        log("On button test thread type: " + audioThreadType);  //java =0, native = 1
+
         if( !isBusy()) {
             restartAudioSystem();
             resetBufferPeriodRecord();

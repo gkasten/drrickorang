@@ -162,7 +162,7 @@ public class HistogramView extends View {
                 if (mData[i] == 0) {
                     currentTop = currentBottom;
                 } else {
-                    float units = (float) ((Math.log10((double) mData[i])) + 1.0);
+                    float units = (float) ((Math.log10((double) mData[i])) + 1.0); // FIXME change it to have "mBase" as the baset
                     currentTop = currentBottom - (height * units);
                 }
 
