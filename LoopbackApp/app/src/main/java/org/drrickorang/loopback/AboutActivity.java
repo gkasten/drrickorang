@@ -50,13 +50,18 @@ public class AboutActivity extends Activity {
         //textView.setText(message1 + message2);
         TextView t3 = new TextView(this);
         t3.setTextSize(17);
-        t3.setText(Html.fromHtml("Audio latency testing app using the Dr. Rick O'Rang audio loopback dongle." + "<br />" + "<br />" +
-                                 "Author: Ricardo Garcia and Tzu-Yin Tai" + "<br />" + "<br />" +
+        t3.setText(Html.fromHtml("Round-trip audio latency testing app" + "<br />" +
+                                 "using the Dr. Rick O'Rang" + "<br />" +
+                                 "audio loopback dongle." + "<br />" + "<br />" +
+                                 "Authors: Ricardo Garcia and Tzu-Yin Tai" + "<br />" + "<br />" +
+/*
                                  "Open source project on:" + "<br />" +
                                  "<a href=\"https://github.com/gkasten/drrickorang\">https://github.com/gkasten/drrickorang</a>" + "<br />" + "<br />" +
+*/
                                  "References:" + "<br />" +
-                                 "<a href=\"https://source.android.com/devices/audio/loopback.html\">https://source.android.com/devices/audio/loopback.html</a>" + "<br />" + "<br />" +
-                                 "<a href=\"https://source.android.com/devices/audio/latency_measure.html#loopback\">https://source.android.com/devices/audio/latency_measure.html#loopback</a>"+
+
+                                 "<a href=\"https://source.android.com/devices/audio/latency.html\">https://source.android.com/devices/audio/latency.html</a>" + "<br />" +
+                                 "<a href=\"https://goo.gl/dxcw0d\">https://goog.gl/dxcw0d</a>"+
                                  "<br />" + "<br />"));
         t3.setMovementMethod(LinkMovementMethod.getInstance());
 
