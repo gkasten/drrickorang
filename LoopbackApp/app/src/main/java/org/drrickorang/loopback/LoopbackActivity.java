@@ -344,7 +344,7 @@ public class LoopbackActivity extends Activity {
         //create filename with date
         String date = mCurrentTime;  // the time the plot is acquired
         String micSource = getApp().getMicSourceString(getApp().getMicSource());
-        String fileName = "LoopbackApp_"+micSource+"_"+date;
+        String fileName = "loopback_"+/*micSource+"_"+*/date;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 
