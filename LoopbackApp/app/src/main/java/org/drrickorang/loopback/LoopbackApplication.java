@@ -198,7 +198,7 @@ public class LoopbackApplication extends Application {
         try {
             int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
             String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
-            info = String.format("ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
+            info = String.format("App ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }

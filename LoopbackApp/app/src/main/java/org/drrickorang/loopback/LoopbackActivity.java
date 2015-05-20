@@ -564,7 +564,9 @@ public class LoopbackActivity extends Activity {
         if(micSourceName != null) {
             s.append(String.format(" Mic: %s", micSourceName));
         }
+/*
         s.append(" App");
+*/
 
         String info = getApp().getSystemInfo();
         s.append(" " + info);
