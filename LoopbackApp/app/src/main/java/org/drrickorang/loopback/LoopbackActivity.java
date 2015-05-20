@@ -573,11 +573,13 @@ public class LoopbackActivity extends Activity {
 
         mTextInfo.setText(s.toString());
 
+/*
         if(mCorrelation.mEstimatedLatencyMs>0.0001) {
             mTextViewEstimatedLatency.setText(String.format("Latency: %.2f ms", mCorrelation.mEstimatedLatencyMs));
         } else {
             mTextViewEstimatedLatency.setText(String.format("Latency: ----"));
         }
+*/
 
     }
 
