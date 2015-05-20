@@ -28,6 +28,7 @@ import android.util.Log;
 
 import android.os.Handler;
 import  android.os.Message;
+import org.drrickorang.loopback.BufferPeriod;
 
 /**
  * A thread/audio track based audio synth.
@@ -64,6 +65,8 @@ public class LoopbackAudioThread extends Thread {
 
     boolean isPlaying = false;
     private Handler mMessageHandler;
+
+    // private static long mStartTime = 0; // the start time of the current loop in "run()"
 
     static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_STARTED = 992;
     static final int FUN_PLUG_AUDIO_THREAD_MESSAGE_REC_ERROR = 993;
@@ -304,6 +307,8 @@ public class LoopbackAudioThread extends Thread {
         private short[] mAudioTone;
         private int mAudioToneIndex;
 
+        // private static long mStartTime = 0;
+
         double twoPi = 6.28318530718;
 
         public double[] mvSamples; //captured samples
@@ -412,11 +417,17 @@ public class LoopbackAudioThread extends Thread {
             }
 
         }
+
+        private void resetLatencyRecord() {
+            BufferPeriod.resetRecord();
+        }
+
         public void run() {
 
             double phase = 0;
             double maxval = Math.pow(2, 15);
 
+            resetLatencyRecord();
             while (!Thread.interrupted()) {
                 boolean isRecording = false;
 
@@ -424,7 +435,11 @@ public class LoopbackAudioThread extends Thread {
                     isRecording = mIsRecording;
                 }
 
+                //long mStartTime = System.nanoTime();
+
                 if (isRecording && mRecorder != null) {
+                    BufferPeriod.collectBufferPeriod();
+
                     int nSamplesRead = mRecorder.read(mAudioShortArray, 0, mMinRecordBuffSizeInSamples);
 //                        int nbBytesRead = mRecorder.read(mAudioByteArray, 0,
 //                                mMinRecordBuffSizeInBytes / 2);
@@ -472,6 +487,7 @@ public class LoopbackAudioThread extends Thread {
             stopRecording();//close this
         }
 
+
        public boolean isStillRoomToRecord() {
            boolean result = false;
            if (mvSamples != null) {
@@ -510,6 +526,9 @@ public class LoopbackAudioThread extends Thread {
         private static void log(String msg) {
             Log.v("Recorder", msg);
         }
+
+        //public static long getStartTime()
+        //    return mStartTime;
 
     } //RecorderRunnable
 };  //end thread.

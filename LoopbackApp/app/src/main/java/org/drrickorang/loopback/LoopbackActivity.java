@@ -35,7 +35,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Toast;
@@ -66,6 +65,7 @@ public class LoopbackActivity extends Activity {
     private WavePlotView mWavePlotView;
     private String mCurrentTime = "IncorrectTime";  // The time the plot is acquired
     private String mFilePathWav;
+
 
     SeekBar  mBarMasterLevel; //drag the volumn
     TextView mTextInfo;
@@ -292,12 +292,27 @@ public class LoopbackActivity extends Activity {
         //first refresh
         refreshState();
     }
+    private void resetBufferPeriodRecord() {
+        BufferPeriod.resetRecord();
+    }
 
     /** Called when the user clicks the button */
     public void onButtonTest(View view) {
+        int samplingRate = getApp().getSamplingRate();
+        int playbackBuffer = getApp().getPlayBufferSizeInBytes()/getApp().BYTES_PER_FRAME;
+        int recordBuffer = getApp().getRecordBufferSizeInBytes()/getApp().BYTES_PER_FRAME;
+        int micSource = getApp().getMicSource();
+        String micSourceName = getApp().getMicSourceString(micSource);
+        int audioThreadType = getApp().getAudioThreadType();
+        log("On button test sampling rate: " + samplingRate);
+        log("On button test playbackBuffer: " + playbackBuffer);
+        log("On button test recordBuffer: " + recordBuffer);
+        log("On button test micSource Name: " + micSourceName);
+        log("On button test thread type: " + audioThreadType);  //java =0, native = 1
 
         if( !isBusy()) {
             restartAudioSystem();
+            resetBufferPeriodRecord();
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -312,6 +327,7 @@ public class LoopbackActivity extends Activity {
                     nativeAudioThread.runTest();
                 }
             }
+
         } else {
             //please wait, or restart application.
 //            Toast.makeText(getApplicationContext(), "Test in progress... please wait",
@@ -328,7 +344,7 @@ public class LoopbackActivity extends Activity {
         //create filename with date
         String date = mCurrentTime;  // the time the plot is acquired
         String micSource = getApp().getMicSourceString(getApp().getMicSource());
-        String fileName = micSource+"_"+date;
+        String fileName = "LoopbackApp_"+micSource+"_"+date;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 
@@ -355,8 +371,8 @@ public class LoopbackActivity extends Activity {
             //save to a given uri... local file?
             Uri uri = Uri.parse("file://mnt/sdcard/"+fileName+".wav");
 
-            String temp = getPath1(uri);
             // for some devices it cannot find the path
+            String temp = getPath1(uri);
             if (temp != null) {
                 File file = new File(temp);
                 mFilePathWav = file.getAbsolutePath();
@@ -397,7 +413,6 @@ public class LoopbackActivity extends Activity {
             Uri uri = null;
             if (resultData != null) {
                 uri = resultData.getData();
-
                 saveScreenShot(uri);
             }
 
@@ -476,6 +491,18 @@ public class LoopbackActivity extends Activity {
             showToast("Test in progress... please wait");
     }
 
+
+    public void onButtonBufferPeriod(View view) {
+        if(!isBusy()) {
+            HistogramView.setBufferPeriodArray(BufferPeriod.getBufferPeriodArray());
+            HistogramView.setMaxBufferPeriod(BufferPeriod.getMaxBufferPeriod());
+
+            Intent aboutIntent = new Intent(this, BufferPeriodActivity.class);
+            startActivity(aboutIntent);
+        } else
+            showToast("Test in progress... please wait");
+    }
+
     /** Called when the user clicks the button */
     public void onButtonSettings(View view) {
 
@@ -537,6 +564,7 @@ public class LoopbackActivity extends Activity {
         if(micSourceName != null) {
             s.append(String.format(" Mic: %s", micSourceName));
         }
+        s.append(" App");
 
         String info = getApp().getSystemInfo();
         s.append(" " + info);
@@ -626,6 +654,7 @@ public class LoopbackActivity extends Activity {
 //            mOutputStream.close();
             status = true;
             parcelFileDescriptor.close();
+            v.setDrawingCacheEnabled(false);
         } catch (Exception e) {
             outputStream = null;
             log("Failed to open png" +e);
@@ -639,6 +668,7 @@ public class LoopbackActivity extends Activity {
                 log("Error closing ParcelFile Descriptor");
             }
         }
+
     }
 
 }

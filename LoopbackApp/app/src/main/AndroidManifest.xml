@@ -72,5 +72,15 @@
                 android:value="org.drrickorang.loopback.LoopbackActivity" />
         </activity>
 
+        <activity
+            android:name="org.drrickorang.loopback.BufferPeriodActivity"
+            android:label="Buffer Period Histogram"
+            android:parentActivityName="org.drrickorang.loopback.LoopbackActivity"
+            android:theme="@android:style/Theme.Holo.Light">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="org.drrickorang.loopback.LoopbackActivity" />
+        </activity>
+
     </application>
 </manifest>

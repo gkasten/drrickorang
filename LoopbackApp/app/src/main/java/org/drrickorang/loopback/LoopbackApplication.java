@@ -26,6 +26,7 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Build;
+import android.util.Log;
 
 public class LoopbackApplication extends Application {
 
@@ -167,6 +168,7 @@ public class LoopbackApplication extends Application {
                 minBufferSizeInFrames = Integer.parseInt(value);
             } else {
                 minBufferSizeInFrames = 1024;
+                log("On button test micSource Name: " );
             }
             int minBufferSizeInBytes = BYTES_PER_FRAME * minBufferSizeInFrames;
 
@@ -196,7 +198,7 @@ public class LoopbackApplication extends Application {
         try {
             int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
             String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
-            info = String.format("Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
+            info = String.format("ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
@@ -232,5 +234,9 @@ public class LoopbackApplication extends Application {
     @Override
     public void onTerminate() {
         super.onTerminate();
+    }
+
+    private static void log(String msg) {
+        Log.v("Recorder", msg);
     }
 }

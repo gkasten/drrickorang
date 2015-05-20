@@ -1,5 +1,6 @@
 package org.drrickorang.loopback;
 
+import android.os.Trace;
 import android.util.Log;
 
 /**
@@ -78,6 +79,7 @@ public class Correlation {
 
         int currentIndex = 0;
         double nextGroup = groupSize;
+        //Trace.beginSection("Processing Correlation");
         for (int i = 0; i<N && currentIndex<mBlockSize; i++) {
 
             if(i> nextGroup) { //advanced to next group.
@@ -90,6 +92,8 @@ public class Correlation {
             }
             dataDownsampled[currentIndex] += Math.abs(data[i]);
         }
+        //Trace.endSection();
+
 
         status = true;
 
