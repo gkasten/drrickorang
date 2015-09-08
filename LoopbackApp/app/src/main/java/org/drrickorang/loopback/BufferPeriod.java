@@ -16,104 +16,105 @@
 
 package org.drrickorang.loopback;
 
-/**
- * Created by ninatai on 5/12/15.
- */
+import java.util.Arrays;
 
 import android.util.Log;
 
-import org.drrickorang.loopback.LoopbackAudioThread.RecorderRunnable;
 
-import java.util.Arrays;
-import java.util.HashMap;
+/**
+ * This class records the buffer period of the audio player or recorder when in Java mode.
+ * Currently the accuracy is in 1ms.
+ */
 
-// TODO add record for native audio thread
+//TODO for native mode, should use a scale more accurate than the current 1ms
 public class BufferPeriod {
-    private static long mPreviousTime = 0;
-    private static long mCurrentTime = 0;
-    private static final int range = 102; //TODO adjust this value
-    private static int mMaxBufferPeriod = 0;
-    private static boolean exceedRange = false;
-    private static int mCount = 0;
-    private static int mDiscard = 5;  // discard the first few buffer period values
+    private static final String TAG = "BufferPeriod";
 
-    private static int[] mJavaBufferPeriod = new int[range];
+    private long mStartTimeNs = 0;  // first time collectBufferPeriod() is called
+    private long mPreviousTimeNs = 0;
+    private long mCurrentTimeNs = 0;
+
+    private int       mMaxBufferPeriod = 0;
+    private int       mCount = 0;
+    private final int range = 1002; // store counts for 0ms to 1000ms, and for > 1000ms
+
+    private int[] mBufferPeriod = new int[range];
+    private int[] mBufferPeriodTimeStamp = new int[range];
 
 
-    public static void collectBufferPeriod()  {
-        mCurrentTime = System.nanoTime();
-        mCount += 1;
+    /**
+     * For player, this function is called before every AudioTrack.write().
+     * For recorder, this function is called after every AudioRecord.read() with read > 0.
+     */
+    public void collectBufferPeriod() {
+        mCurrentTimeNs = System.nanoTime();
+        mCount++;
 
-        // if = 0 it's the first time the thread runs, so don't record the interval
-        if (mPreviousTime != 0 && mCurrentTime != 0 && mCount > mDiscard) {
-            long diffInNano = mCurrentTime - mPreviousTime;
-            int diffInMilli = (int) Math.ceil(( ((double)diffInNano / 1000000))); // round up
+        // if mPreviousTimeNs = 0, it's the first time this function is called
+        if (mPreviousTimeNs == 0) {
+            mStartTimeNs = mCurrentTimeNs;
+        }
+
+        final int discard = 10; // discard the first few buffer period values
+        if (mPreviousTimeNs != 0 && mCount > discard) {
+            long diffInNano = mCurrentTimeNs - mPreviousTimeNs;
+            // diffInMilli is rounded up
+            int diffInMilli = (int) ((diffInNano + Constant.NANOS_PER_MILLI - 1) /
+                                      Constant.NANOS_PER_MILLI);
+
+            long timeStampInNano = mCurrentTimeNs - mStartTimeNs;
+            int timeStampInMilli = (int) ((timeStampInNano + Constant.NANOS_PER_MILLI - 1) /
+                                           Constant.NANOS_PER_MILLI);
 
             if (diffInMilli > mMaxBufferPeriod) {
                 mMaxBufferPeriod = diffInMilli;
             }
 
-            // from 0 ms to 1000 ms, plus a sum of all instances > 1000ms
-            if (diffInMilli >= 0 && diffInMilli < (range - 1)) {
-                mJavaBufferPeriod[diffInMilli] += 1;
-            } else if (diffInMilli >= (range - 1)) {
-                mJavaBufferPeriod[range-1] += 1;
-            } else if (diffInMilli < 0) {
-                // throw new IllegalBufferPeriodException("BufferPeriod must be >= 0");
-                errorLog("Having negative BufferPeriod.");
+            // from 0 ms to 1000 ms, plus a sum of all occurrences > 1000ms
+            if (diffInMilli >= (range - 1)) {
+                mBufferPeriod[range - 1]++;
+                mBufferPeriodTimeStamp[range - 1] = timeStampInMilli;
+            } else if (diffInMilli >= 0) {
+                mBufferPeriod[diffInMilli]++;
+                mBufferPeriodTimeStamp[diffInMilli] = timeStampInMilli;
+            } else { // for diffInMilli < 0
+                log("Having negative BufferPeriod.");
             }
 
         }
 
-        mPreviousTime = mCurrentTime;
+        mPreviousTimeNs = mCurrentTimeNs;
     }
 
-    // Check if max BufferPeriod exceeds the range of latencies that are going to be displayed on histogram
-    public static void setExceedRange() {
-        if (mMaxBufferPeriod > (range - 2)) {
-            exceedRange = true;
-        } else {
-            exceedRange = false;
-        }
-    }
 
-    public static void resetRecord() {
-        mPreviousTime = 0;
-        mCurrentTime = 0;
-        Arrays.fill(mJavaBufferPeriod, 0);
+    /** Reset all variables, called if wants to start a new buffer period's record. */
+    public void resetRecord() {
+        mPreviousTimeNs = 0;
+        mCurrentTimeNs = 0;
+        Arrays.fill(mBufferPeriodTimeStamp, 0);
+        Arrays.fill(mBufferPeriod, 0);
         mMaxBufferPeriod = 0;
         mCount = 0;
-
     }
 
-    public static int[] getBufferPeriodArray() {
-        return mJavaBufferPeriod;
 
+    public int[] getBufferPeriodArray() {
+        return mBufferPeriod;
     }
 
-    public static int getMaxBufferPeriod() {
+
+    public int[] getBufferPeriodTimeStampArray() {
+        return mBufferPeriodTimeStamp;
+    }
+
+
+    public int getMaxBufferPeriod() {
         return mMaxBufferPeriod;
     }
 
 
-
-
-    private static void errorLog(String msg) {
-        Log.e("BufferPeriodTracker", msg);
-    }
-
     private static void log(String msg) {
-        Log.v("BufferPeriodTracker", msg);
+        Log.v(TAG, msg);
     }
-
-    public static class IllegalBufferPeriodException extends Exception {
-
-        public IllegalBufferPeriodException(String message)
-        {
-            super(message);
-        }
-    }
-
-
 
 }

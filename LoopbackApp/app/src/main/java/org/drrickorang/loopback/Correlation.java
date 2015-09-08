@@ -16,22 +16,24 @@
 
 package org.drrickorang.loopback;
 
-import android.os.Trace;
 import android.util.Log;
 
-/**
- * Created by rago on 5/8/15.
- */
-public class Correlation {
 
-    private int mBlockSize = 4096;
-    private int mSamplingRate = 44100;
+/**
+ * This class is used to automatically estimate latency and its confidence.
+ */
+
+public class Correlation {
+    private static final String TAG = "Correlation";
+
+    private int       mBlockSize = 4096;
+    private int       mSamplingRate;
     private double [] mDataDownsampled = new double [mBlockSize];
     private double [] mDataAutocorrelated = new double[mBlockSize];
 
     public double mEstimatedLatencySamples = 0;
     public double mEstimatedLatencyMs = 0;
-
+    public double mEstimatedLatencyConfidence = 0.0;
 
 
     public void init(int blockSize, int samplingRate) {
@@ -39,8 +41,9 @@ public class Correlation {
         mSamplingRate = samplingRate;
     }
 
+
     public boolean computeCorrelation(double [] data, int samplingRate) {
-        boolean status = false;
+        boolean status;
         log("Started Auto Correlation for data with " + data.length + " points");
         mSamplingRate = samplingRate;
 
@@ -57,36 +60,51 @@ public class Correlation {
         int maxIndex = -1;
 
         double minLatencyMs = 8; //min latency expected. This algorithm should be improved.
-        int minIndex = (int)(0.5 + minLatencyMs * mSamplingRate / (groupSize*1000));
+        int minIndex = (int) (0.5 + minLatencyMs * mSamplingRate / (groupSize * 1000));
+
+        double average = 0;
+        double rms = 0;
 
         //find max
-        for(int i=minIndex; i<mDataAutocorrelated.length; i++) {
-           if(mDataAutocorrelated[i] > maxValue) {
+        for (int i = minIndex; i < mDataAutocorrelated.length; i++) {
+            average += mDataAutocorrelated[i];
+            rms += mDataAutocorrelated[i] * mDataAutocorrelated[i];
+           if (mDataAutocorrelated[i] > maxValue) {
                maxValue = mDataAutocorrelated[i];
                maxIndex = i;
            }
         }
 
-        log(String.format(" Maxvalue %f, max Index : %d/%d (%d)  minIndex=%d",maxValue, maxIndex, mDataAutocorrelated.length, data.length, minIndex));
+        rms = Math.sqrt(rms / mDataAutocorrelated.length);
+        average = average / mDataAutocorrelated.length;
+        log(String.format(" Maxvalue %f, max Index : %d/%d (%d)  minIndex = %d", maxValue, maxIndex,
+                          mDataAutocorrelated.length, data.length, minIndex));
+        log(String.format("  average : %.3f  rms: %.3f", average, rms));
 
+        mEstimatedLatencyConfidence = 0.0;
+        if (average > 0) {
+            double factor = 3.0;
 
+            double raw = (rms - average) / (factor * average);
+            log(String.format("Raw: %.3f", raw));
+            mEstimatedLatencyConfidence = Math.max(Math.min(raw, 1.0), 0.0);
+        }
+        log(String.format(" ****Confidence: %.2f", mEstimatedLatencyConfidence));
 
-        mEstimatedLatencySamples = maxIndex*groupSize;
-
-        mEstimatedLatencyMs = mEstimatedLatencySamples *1000/mSamplingRate;
-
-        log(String.format(" latencySamples: %.2f  %.2f ms", mEstimatedLatencySamples, mEstimatedLatencyMs));
+        mEstimatedLatencySamples = maxIndex * groupSize;
+        mEstimatedLatencyMs = mEstimatedLatencySamples * 1000 / mSamplingRate;
+        log(String.format(" latencySamples: %.2f  %.2f ms", mEstimatedLatencySamples,
+                          mEstimatedLatencyMs));
 
         status = true;
-
         return status;
     }
 
+
     private boolean downsampleData(double [] data, double [] dataDownsampled) {
 
-        boolean status = false;
-       // mDataDownsampled = new double[mBlockSize];
-        for (int i=0; i<mBlockSize; i++) {
+        boolean status;
+        for (int i = 0; i < mBlockSize; i++) {
             dataDownsampled[i] = 0;
         }
 
@@ -95,40 +113,35 @@ public class Correlation {
 
         int currentIndex = 0;
         double nextGroup = groupSize;
-        //Trace.beginSection("Processing Correlation");
-        for (int i = 0; i<N && currentIndex<mBlockSize; i++) {
+        for (int i = 0; i < N && currentIndex < mBlockSize; i++) {
 
-            if(i> nextGroup) { //advanced to next group.
+            if (i > nextGroup) { //advanced to next group.
                 currentIndex++;
                 nextGroup += groupSize;
             }
 
-            if (currentIndex>=mBlockSize) {
+            if (currentIndex >= mBlockSize) {
                 break;
             }
             dataDownsampled[currentIndex] += Math.abs(data[i]);
         }
-        //Trace.endSection();
-
 
         status = true;
-
         return status;
     }
+
 
     private boolean autocorrelation(double [] data, double [] dataOut) {
         boolean status = false;
 
         double sumsquared = 0;
         int N = data.length;
-        for(int i=0; i<N; i++) {
+        for (int i = 0; i < N; i++) {
             double value = data[i];
-            sumsquared += value*value;
+            sumsquared += value * value;
         }
 
-        //dataOut = new double[N];
-
-        if(sumsquared>0) {
+        if (sumsquared > 0) {
             //correlate (not circular correlation)
             for (int i = 0; i < N; i++) {
                 dataOut[i] = 0;
@@ -144,7 +157,8 @@ public class Correlation {
         return status;
     }
 
+
     private static void log(String msg) {
-        Log.v("Recorder", msg);
+        Log.v(TAG, msg);
     }
 }

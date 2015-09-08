@@ -18,17 +18,10 @@ package org.drrickorang.loopback;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.Context;
-import android.content.pm.PackageManager;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioRecord;
-import android.media.AudioTrack;
-import android.os.Build;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -37,21 +30,26 @@ import android.widget.NumberPicker;
 import android.widget.NumberPicker.OnValueChangeListener;
 import android.widget.TextView;
 
+
+/**
+ * This activity displays all settings that can be adjusted by the user.
+ */
+
 public class SettingsActivity extends Activity implements OnItemSelectedListener,
-OnValueChangeListener {
-    /**
-     * Called with the activity is first created.
-     */
-    Spinner mSpinnerMicSource;
-    Spinner mSpinnerSamplingRate;
-    Spinner mSpinnerAudioThreadType;
-    NumberPicker mNumberPickerPlaybackBuffer;
-    NumberPicker mNumberPickerRecordBuffer;
+                                                          OnValueChangeListener {
+    private static final String TAG = "SettingsActivity";
 
-    TextView mTextSettingsInfo;
+    private Spinner      mSpinnerMicSource;
+    private Spinner      mSpinnerSamplingRate;
+    private Spinner      mSpinnerAudioThreadType;
+    private NumberPicker mNumberPickerPlayerBuffer;
+    private NumberPicker mNumberPickerRecorderBuffer;
+    private NumberPicker mNumberPickerBufferTestDuration;   // in seconds
+    private NumberPicker mNumberPickerBufferTestWavePlotDuration; //in seconds
+    private TextView     mTextSettingsInfo;
 
-    ArrayAdapter<CharSequence> adapterSamplingRate;
-    int bytesPerFrame;
+    ArrayAdapter<CharSequence> mAdapterSamplingRate;
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -59,10 +57,7 @@ OnValueChangeListener {
         // Set the layout for this activity. You can find it
         View view = getLayoutInflater().inflate(R.layout.settings_activity, null);
         setContentView(view);
-
-
         mTextSettingsInfo = (TextView) findViewById(R.id.textSettingsInfo);
-
 
         int micSource = getApp().getMicSource();
         mSpinnerMicSource = (Spinner) findViewById(R.id.spinnerMicSource);
@@ -73,26 +68,22 @@ OnValueChangeListener {
         // Apply the adapter to the spinner
         mSpinnerMicSource.setAdapter(adapterMicSource);
         //set current value
-//        String currentValue = String.valueOf(samplingRate);
-//        int nPosition = adapter.getPosition(currentValue);
         mSpinnerMicSource.setSelection(micSource, false);
         mSpinnerMicSource.setOnItemSelectedListener(this);
 
-
-        bytesPerFrame = getApp().BYTES_PER_FRAME;
         int samplingRate = getApp().getSamplingRate();
         //init spinner, etc
         mSpinnerSamplingRate = (Spinner) findViewById(R.id.spinnerSamplingRate);
-        adapterSamplingRate = ArrayAdapter.createFromResource(this,
+        mAdapterSamplingRate = ArrayAdapter.createFromResource(this,
                 R.array.samplingRate_array, android.R.layout.simple_spinner_item);
         // Specify the layout to use when the list of choices appears
-        adapterSamplingRate.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mAdapterSamplingRate.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // Apply the adapter to the spinner
-        mSpinnerSamplingRate.setAdapter(adapterSamplingRate);
+        mSpinnerSamplingRate.setAdapter(mAdapterSamplingRate);
         //set current value
         String currentValue = String.valueOf(samplingRate);
-        int nPosition = adapterSamplingRate.getPosition(currentValue);
-        mSpinnerSamplingRate.setSelection(nPosition,false);
+        int nPosition = mAdapterSamplingRate.getPosition(currentValue);
+        mSpinnerSamplingRate.setSelection(nPosition, false);
 
         mSpinnerSamplingRate.setOnItemSelectedListener(this);
         //spinner native
@@ -105,137 +96,209 @@ OnValueChangeListener {
         // Apply the adapter to the spinner
         mSpinnerAudioThreadType.setAdapter(adapter2);
         //set current value
-//        String currentValue = String.valueOf(samplingRate);
-//        int nPosition = adapter.getPosition(currentValue);
         mSpinnerAudioThreadType.setSelection(audioThreadType, false);
         if (!getApp().isSafeToUseSles())
             mSpinnerAudioThreadType.setEnabled(false);
 
         mSpinnerAudioThreadType.setOnItemSelectedListener(this);
-        //playback buffer
-        mNumberPickerPlaybackBuffer = (NumberPicker) findViewById(R.id.numberpickerPlaybackBuffer);
-        mNumberPickerPlaybackBuffer.setMaxValue(8000);
-        mNumberPickerPlaybackBuffer.setMinValue(16);
-        mNumberPickerPlaybackBuffer.setWrapSelectorWheel(false);
-        mNumberPickerPlaybackBuffer.setOnValueChangedListener(this);
-        int playbackBuffer = getApp().getPlayBufferSizeInBytes()/bytesPerFrame;
-        mNumberPickerPlaybackBuffer.setValue(playbackBuffer);
-        log("playbackbuffer = " + playbackBuffer);
+
+        // buffer test duration in seconds
+        int bufferTestDurationMax = 36000;
+        int bufferTestDurationMin = 1;
+        mNumberPickerBufferTestDuration = (NumberPicker)
+                                          findViewById(R.id.numberpickerBufferTestDuration);
+        mNumberPickerBufferTestDuration.setMaxValue(bufferTestDurationMax);
+        mNumberPickerBufferTestDuration.setMinValue(bufferTestDurationMin);
+        mNumberPickerBufferTestDuration.setWrapSelectorWheel(false);
+        mNumberPickerBufferTestDuration.setOnValueChangedListener(this);
+        int bufferTestDuration = getApp().getBufferTestDuration();
+        mNumberPickerBufferTestDuration.setValue(bufferTestDuration);
+
+        // set the string to display bufferTestDurationMax
+        Resources res = getResources();
+        String string1 = res.getString(R.string.labelBufferTestDuration, bufferTestDurationMax);
+        TextView textView = (TextView) findViewById(R.id.textBufferTestDuration);
+        textView.setText(string1);
+
+        // wave plot duration for buffer test in seconds
+        int bufferTestWavePlotDurationMax = 120;
+        int bufferTestWavePlotDurationMin = 1;
+        mNumberPickerBufferTestWavePlotDuration = (NumberPicker)
+                                        findViewById(R.id.numberPickerBufferTestWavePlotDuration);
+        mNumberPickerBufferTestWavePlotDuration.setMaxValue(bufferTestWavePlotDurationMax);
+        mNumberPickerBufferTestWavePlotDuration.setMinValue(bufferTestWavePlotDurationMin);
+        mNumberPickerBufferTestWavePlotDuration.setWrapSelectorWheel(false);
+        mNumberPickerBufferTestWavePlotDuration.setOnValueChangedListener(this);
+        int bufferTestWavePlotDuration = getApp().getBufferTestWavePlotDuration();
+        mNumberPickerBufferTestWavePlotDuration.setValue(bufferTestWavePlotDuration);
+
+        // set the string to display bufferTestWavePlotDurationMax
+        string1 = res.getString(R.string.labelBufferTestWavePlotDuration,
+                bufferTestWavePlotDurationMax);
+        textView = (TextView) findViewById(R.id.textBufferTestWavePlotDuration);
+        textView.setText(string1);
+
+        //player buffer
+        int playerBufferMax = 8000;
+        int playerBufferMin = 16;
+        mNumberPickerPlayerBuffer = (NumberPicker) findViewById(R.id.numberpickerPlayerBuffer);
+        mNumberPickerPlayerBuffer.setMaxValue(playerBufferMax);
+        mNumberPickerPlayerBuffer.setMinValue(playerBufferMin);
+        mNumberPickerPlayerBuffer.setWrapSelectorWheel(false);
+        mNumberPickerPlayerBuffer.setOnValueChangedListener(this);
+        int playerBuffer = getApp().getPlayerBufferSizeInBytes()/ Constant.BYTES_PER_FRAME;
+        mNumberPickerPlayerBuffer.setValue(playerBuffer);
+        log("playerbuffer = " + playerBuffer);
+
+        // set the string to display playerBufferMax
+        string1 = res.getString(R.string.labelPlayerBuffer, playerBufferMax);
+        textView = (TextView) findViewById(R.id.textPlayerBuffer);
+        textView.setText(string1);
+
         //record buffer
-        mNumberPickerRecordBuffer = (NumberPicker) findViewById(R.id.numberpickerRecordBuffer);
-        mNumberPickerRecordBuffer.setMaxValue(8000);
-        mNumberPickerRecordBuffer.setMinValue(16);
-        mNumberPickerRecordBuffer.setWrapSelectorWheel(false);
-        mNumberPickerRecordBuffer.setOnValueChangedListener(this);
-        int recordBuffer = getApp().getRecordBufferSizeInBytes()/bytesPerFrame;
-        mNumberPickerRecordBuffer.setValue(recordBuffer);
-        log("recordBuffer = " + recordBuffer);
+        int recorderBufferMax = 8000;
+        int recorderBufferMin = 16;
+        mNumberPickerRecorderBuffer = (NumberPicker) findViewById(R.id.numberpickerRecorderBuffer);
+        mNumberPickerRecorderBuffer.setMaxValue(recorderBufferMax);
+        mNumberPickerRecorderBuffer.setMinValue(recorderBufferMin);
+        mNumberPickerRecorderBuffer.setWrapSelectorWheel(false);
+        mNumberPickerRecorderBuffer.setOnValueChangedListener(this);
+        int recorderBuffer = getApp().getRecorderBufferSizeInBytes()/ Constant.BYTES_PER_FRAME;
+        mNumberPickerRecorderBuffer.setValue(recorderBuffer);
+        log("recorderBuffer = " + recorderBuffer);
+
+        // set the string to display playerBufferMax
+        string1 = res.getString(R.string.labelRecorderBuffer, recorderBufferMax);
+        textView = (TextView) findViewById(R.id.textRecorderBuffer);
+        textView.setText(string1);
+
         refresh();
     }
+
 
     public void onDestroy() {
         super.onDestroy();
     }
+
+
     @Override
     public void onBackPressed() {
-
         log("on back pressed");
         settingsChanged();
         finish();
     }
-    private void refresh() {
-        int playbackBuffer = getApp().getPlayBufferSizeInBytes()/bytesPerFrame;
-        mNumberPickerPlaybackBuffer.setValue(playbackBuffer);
-         int recordBuffer = getApp().getRecordBufferSizeInBytes()/bytesPerFrame;
-        mNumberPickerRecordBuffer.setValue(recordBuffer);
-        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA)
-            mNumberPickerRecordBuffer.setEnabled(true);
-        else
-            mNumberPickerRecordBuffer.setEnabled(false);
 
+
+    private void refresh() {
+        int bufferTestDuration = getApp().getBufferTestDuration();
+        mNumberPickerBufferTestDuration.setValue(bufferTestDuration);
+
+        int bufferTestWavePlotDuration = getApp().getBufferTestWavePlotDuration();
+        mNumberPickerBufferTestWavePlotDuration.setValue(bufferTestWavePlotDuration);
+
+        int playerBuffer = getApp().getPlayerBufferSizeInBytes() / Constant.BYTES_PER_FRAME;
+        mNumberPickerPlayerBuffer.setValue(playerBuffer);
+        int recorderBuffer = getApp().getRecorderBufferSizeInBytes() / Constant.BYTES_PER_FRAME;
+        mNumberPickerRecorderBuffer.setValue(recorderBuffer);
+
+        if (getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_JAVA) {
+            mNumberPickerRecorderBuffer.setEnabled(true);
+        } else {
+            mNumberPickerRecorderBuffer.setEnabled(false);
+        }
 
         int samplingRate = getApp().getSamplingRate();
-
         String currentValue = String.valueOf(samplingRate);
-        int nPosition = adapterSamplingRate.getPosition(currentValue);
+        int nPosition = mAdapterSamplingRate.getPosition(currentValue);
         mSpinnerSamplingRate.setSelection(nPosition);
 
-
-//        try {
-//            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionCode;
-//            String versionName = getApplicationContext().getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), 0).versionName;
-//            mTextSettingsInfo.setText("SETTINGS - Ver. " +versionCode +"."+ versionName + " | " +Build.MODEL + " | " + Build.FINGERPRINT);
-//        } catch (PackageManager.NameNotFoundException e) {
-//            e.printStackTrace();
-//        }
         String info = getApp().getSystemInfo();
-        mTextSettingsInfo.setText(String.format("SETTINGS - "+info));
-
+        mTextSettingsInfo.setText("SETTINGS - " + info);
     }
-     public void onItemSelected(AdapterView<?> parent, View view,
-            int pos, long id) {
+
+
+    public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
         // An item was selected. You can retrieve the selected item using
         // parent.getItemAtPosition(pos)
         log("item selected!");
-        switch(parent.getId()) {
-            case R.id.spinnerSamplingRate:
-                String stringValue = mSpinnerSamplingRate.getSelectedItem().toString();
-                int samplingRate = Integer.parseInt(stringValue);
-                getApp().setSamplingRate(samplingRate);
-                settingsChanged();
-                log("Sampling Rate: "+ stringValue);
-                break;
-            case R.id.spinnerAudioThreadType:
-                int audioThreadType = mSpinnerAudioThreadType.getSelectedItemPosition();
-                getApp().setAudioThreadType(audioThreadType);
-                getApp().computeDefaults();
-                settingsChanged();
-                log("AudioThreadType:" + audioThreadType);
-                refresh();
-                break;
-            case R.id.spinnerMicSource:
-                int micSource = mSpinnerMicSource.getSelectedItemPosition();
-                getApp().setMicSource(micSource);
-                settingsChanged();
-                log("mic Source:" + micSource);
-                refresh();
-                break;
+
+        switch (parent.getId()) {
+        case R.id.spinnerSamplingRate:
+            String stringValue = mSpinnerSamplingRate.getSelectedItem().toString();
+            int samplingRate = Integer.parseInt(stringValue);
+            getApp().setSamplingRate(samplingRate);
+            settingsChanged();
+            log("Sampling Rate: " + stringValue);
+            refresh();
+            break;
+        case R.id.spinnerAudioThreadType:
+            int audioThreadType = mSpinnerAudioThreadType.getSelectedItemPosition();
+            getApp().setAudioThreadType(audioThreadType);
+            getApp().computeDefaults();
+            settingsChanged();
+            log("AudioThreadType:" + audioThreadType);
+            refresh();
+            break;
+        case R.id.spinnerMicSource:
+            int micSource = mSpinnerMicSource.getSelectedItemPosition();
+            getApp().setMicSource(micSource);
+            settingsChanged();
+            log("mic Source:" + micSource);
+            refresh();
+            break;
         }
     }
 
-    public void onValueChange (NumberPicker picker, int oldVal, int newVal) {
-        if (picker == mNumberPickerPlaybackBuffer) {
-            log("playback new size " + oldVal + " -> " + newVal);
-            getApp().setPlayBufferSizeInBytes(newVal*bytesPerFrame);
-        } else if (picker == mNumberPickerRecordBuffer) {
-            log("record new size " + oldVal + " -> " + newVal);
-            getApp().setRecordBufferSizeInBytes(newVal*bytesPerFrame);
+
+    public void onValueChange(NumberPicker picker, int oldVal, int newVal) {
+        if (picker == mNumberPickerPlayerBuffer) {
+            log("player buffer new size " + oldVal + " -> " + newVal);
+            getApp().setPlayerBufferSizeInBytes(newVal * Constant.BYTES_PER_FRAME);
+            int audioThreadType = mSpinnerAudioThreadType.getSelectedItemPosition();
+            // in native mode, recorder buffer size = player buffer size
+            if (audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE){
+                getApp().setRecorderBufferSizeInBytes(newVal * Constant.BYTES_PER_FRAME);
+            }
+        } else if (picker == mNumberPickerRecorderBuffer) {
+            log("recorder buffer new size " + oldVal + " -> " + newVal);
+            getApp().setRecorderBufferSizeInBytes(newVal * Constant.BYTES_PER_FRAME);
+        } else if (picker == mNumberPickerBufferTestDuration) {
+            log("buffer test new duration: " + oldVal + " -> " + newVal);
+            getApp().setBufferTestDuration(newVal);
+        } else if (picker == mNumberPickerBufferTestWavePlotDuration) {
+            log("buffer test's wave plot new duration: " + oldVal + " -> " + newVal);
+            getApp().setBufferTestWavePlotDuration(newVal);
         }
+        settingsChanged();
+        refresh();
     }
+
 
     private void settingsChanged() {
         Intent intent = new Intent();
         setResult(RESULT_OK, intent);
     }
 
+
     public void onNothingSelected(AdapterView<?> parent) {
         // Another interface callback
     }
 
+
     /** Called when the user clicks the button */
     public void onButtonClick(View view) {
-        //refresh();
         getApp().computeDefaults();
         refresh();
     }
 
+// Below is work in progress by Ricardo
 //    public void onButtonRecordDefault(View view) {
 //        int samplingRate = getApp().getSamplingRate();
 //
-//        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+//        int minRecorderBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
 //                AudioFormat.CHANNEL_IN_MONO,
 //                AudioFormat.ENCODING_PCM_16BIT);
-//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+//        getApp().setRecorderBufferSizeInBytes(minRecorderBufferSizeInBytes);
 //
 //        refresh();
 //    }
@@ -243,33 +306,35 @@ OnValueChangeListener {
 //    private void computeDefaults() {
 //
 ////        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA) {
-////            mNumberPickerRecordBuffer.setEnabled(true);
+////            mNumberPickerRecorderBuffer.setEnabled(true);
 ////        else
-////            mNumberPickerRecordBuffer.setEnabled(false);
+////            mNumberPickerRecorderBuffer.setEnabled(false);
 //
 //        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
 //        getApp().setSamplingRate(samplingRate);
-//        int minPlayBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
+//        int minPlayerBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
 //                AudioFormat.CHANNEL_OUT_MONO,
 //                AudioFormat.ENCODING_PCM_16BIT);
-//        getApp().setPlayBufferSizeInBytes(minPlayBufferSizeInBytes);
+//        getApp().setPlayerBufferSizeInBytes(minPlayerBufferSizeInBytes);
 //
-//        int minRecBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
+//        int minRecorderBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
 //                AudioFormat.CHANNEL_IN_MONO,
 //                AudioFormat.ENCODING_PCM_16BIT);
-//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
-//        getApp().setRecordBufferSizeInBytes(minRecBufferSizeInBytes);
+//        getApp().setRecorderBufferSizeInBytes(minRecorderBufferSizeInBytes);
+//        getApp().setRecorderBufferSizeInBytes(minRecorderBufferSizeInBytes);
 //
 //        log("computed defaults");
 //
 //    }
 
+
     private LoopbackApplication getApp() {
         return (LoopbackApplication) this.getApplication();
     }
 
+
     private static void log(String msg) {
-        Log.v("Settings", msg);
+        Log.v(TAG, msg);
     }
 
 }

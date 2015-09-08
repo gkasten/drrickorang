@@ -20,48 +20,91 @@
 #include <stdio.h>
 #include <stddef.h>
 
-/////
+
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
-  (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource) {
+  (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource,
+   jint testType, jdouble frequency1, jobject byteBuffer) {
 
     sles_data * pSles = NULL;
 
-    if( slesInit(&pSles, samplingRate, frameCount, micSource) != SLES_FAIL ) {
+    char* byteBufferPtr = (*env)->GetDirectBufferAddress(env, byteBuffer);
+    int byteBufferLength = (*env)->GetDirectBufferCapacity(env, byteBuffer);
 
-    return (long)pSles;
+    if (slesInit(&pSles, samplingRate, frameCount, micSource,
+                 testType, frequency1, byteBufferPtr, byteBufferLength) != SLES_FAIL) {
+        return (long) pSles;
     }
+
     // FIXME This should be stored as a (long) field in the object,
-    //       so that incorrect Java code could not synthesize a bad sles pointer.
+    // so that incorrect Java code could not synthesize a bad sles pointer.
     return 0;
 }
 
+
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesProcessNext
 (JNIEnv *env __unused, jobject obj __unused, jlong sles, jdoubleArray samplesArray, jlong offset) {
-    sles_data * pSles= (sles_data*) sles;
+    sles_data * pSles = (sles_data*) (size_t) sles;
 
     long maxSamples = (*env)->GetArrayLength(env, samplesArray);
-    double *pSamples = (*env)->GetDoubleArrayElements(env, samplesArray,0);
+    double *pSamples = (*env)->GetDoubleArrayElements(env, samplesArray, 0);
 
     long availableSamples = maxSamples-offset;
     double *pCurrentSample = pSamples+offset;
 
-
-
-    //int samplesRead = slesProcessNext(pSles, pSamples, maxSamples);
-
-    SLES_PRINTF("jni slesProcessNext pSles:%p, currentSample %p, availableSamples %d ", pSles, pCurrentSample, availableSamples);
-
+    SLES_PRINTF("jni slesProcessNext pSles:%p, currentSample %p, availableSamples %d ",
+                pSles, pCurrentSample, availableSamples);
 
     int samplesRead = slesProcessNext(pSles, pCurrentSample, availableSamples);
-
     return samplesRead;
 }
 
+
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesDestroy
   (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
-    sles_data * pSles= (sles_data*) sles;
-
+    sles_data * pSles = (sles_data*) (size_t) sles;
     int status = slesDestroy(&pSles);
-
     return status;
+}
+
+
+JNIEXPORT jintArray JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderBufferPeriod
+  (JNIEnv *env, jobject obj, jlong sles) {
+    sles_data * pSles = (sles_data*) (size_t) sles;
+    int* recorderBufferPeriod = slesGetRecorderBufferPeriod(pSles);
+
+    // get the length = RANGE
+    jintArray result = (*env)->NewIntArray(env, RANGE);
+    (*env)->SetIntArrayRegion(env, result, 0, RANGE, recorderBufferPeriod);
+
+    return result;
+}
+
+
+JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderMaxBufferPeriod
+  (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data * pSles = (sles_data*) (size_t) sles;
+    int* recorderMaxBufferPeriod = slesGetRecorderMaxBufferPeriod(pSles);
+
+    return recorderMaxBufferPeriod;
+}
+
+
+JNIEXPORT jintArray JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerBufferPeriod
+  (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data * pSles = (sles_data*) (size_t) sles;
+    int* playerBufferPeriod = slesGetPlayerBufferPeriod(pSles);
+
+    jintArray result = (*env)->NewIntArray(env, RANGE);
+    (*env)->SetIntArrayRegion(env, result, 0, RANGE, playerBufferPeriod);
+
+    return result;
+}
+
+
+JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerMaxBufferPeriod
+  (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data * pSles = (sles_data*) (size_t) sles;
+    int playerMaxBufferPeriod = slesGetPlayerMaxBufferPeriod(pSles);
+
+    return playerMaxBufferPeriod;
 }

@@ -16,29 +16,38 @@
 
 package org.drrickorang.loopback;
 
-import android.app.Activity;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.TextView;
+import android.util.Log;
+
 
 /**
- * Created by ninatai on 5/13/15.
+ * This thread is used to add load to CPU, in order to test performance of audio under load.
  */
-public class BufferPeriodActivity extends Activity {
 
-    private HistogramView mHistogramView;
-    private TextView mTextView;
+public class LoadThread extends Thread {
+    private static final String TAG = "LoadThread";
 
-    public void onCreate(Bundle savedInstanceState) {
-
-        super.onCreate(savedInstanceState);
-
-        View view = getLayoutInflater().inflate(R.layout.buffer_period_activity, null);
-        setContentView(view);
-        mTextView = (TextView) findViewById(R.id.histogramInfo);
-        mHistogramView = (HistogramView) findViewById(R.id.viewHistogram);
+    private volatile boolean mIsRunning;
 
 
+    public void run() {
+        log("Entering load thread");
+        long count = 0;
+        mIsRunning = true;
+        while(mIsRunning) {
+            count++;
+        }
 
+        log("exiting CPU load thread with count = " + count);
     }
+
+
+    public void requestStop() {
+        mIsRunning = false;
+    }
+
+
+    private static void log(String msg) {
+        Log.v(TAG, msg);
+    }
+
 }

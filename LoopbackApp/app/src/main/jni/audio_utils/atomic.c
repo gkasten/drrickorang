@@ -18,14 +18,12 @@
 
 #include <stdatomic.h>
 
-int32_t android_atomic_acquire_load(volatile const int32_t* addr)
-{
-    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*)addr;
+int32_t android_atomic_acquire_load(volatile const int32_t* addr) {
+    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
     return atomic_load_explicit(a, memory_order_acquire);
 }
 
-void android_atomic_release_store(int32_t value, volatile int32_t* addr)
-{
-    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*)addr;
+void android_atomic_release_store(int32_t value, volatile int32_t* addr) {
+    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
     atomic_store_explicit(a, value, memory_order_release);
 }

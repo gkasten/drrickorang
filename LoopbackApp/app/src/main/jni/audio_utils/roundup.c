@@ -16,12 +16,12 @@
 
 #include "roundup.h"
 
-unsigned roundup(unsigned v)
-{
+unsigned roundup(unsigned v) {
     // __builtin_clz is undefined for zero input
     if (v == 0) {
         v = 1;
     }
+
     int lz = __builtin_clz((int) v);
     unsigned rounded = ((unsigned) 0x80000000) >> lz;
     // 0x800000001 and higher are actually rounded _down_ to prevent overflow

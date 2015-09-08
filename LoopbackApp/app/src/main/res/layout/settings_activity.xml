@@ -43,7 +43,7 @@
                 android:background="@android:color/darker_gray"/>
 
             <TextView
-                android:id="@+id/text6"
+                android:id="@+id/textMicSource"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/labelMicSource"/>
@@ -58,7 +58,7 @@
                 android:background="@android:color/darker_gray"/>
 
             <TextView
-                android:id="@+id/text3"
+                android:id="@+id/textAudioThreadType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/labelAudioThreadType"/>
@@ -74,14 +74,14 @@
 
             <Button
                 xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonPlaybackDefault"
+                android:id="@+id/buttonDefaultSettings"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/buttonPlaybackDefault"
+                android:text="@string/buttonDefaultSettings"
                 android:onClick="onButtonClick"/>
 
             <TextView
-                android:id="@+id/text2"
+                android:id="@+id/textSamplingRate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/labelSamplingRate"/>
@@ -97,12 +97,12 @@
                 android:background="@android:color/darker_gray"/>
 
             <TextView
-                android:id="@+id/text4"
+                android:id="@+id/textPlayerBuffer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/labelPlaybackBuffer"/>
+                android:text="@string/labelPlayerBuffer"/>
             <NumberPicker
-                android:id="@+id/numberpickerPlaybackBuffer"
+                android:id="@+id/numberpickerPlayerBuffer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
 
@@ -112,13 +112,47 @@
                 android:background="@android:color/darker_gray"/>
 
             <TextView
-                android:id="@+id/text5"
+                android:id="@+id/textRecorderBuffer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/labelRecordBuffer"/>
+                android:text="@string/labelRecorderBuffer"/>
 
             <NumberPicker
-                android:id="@+id/numberpickerRecordBuffer"
+                android:id="@+id/numberpickerRecorderBuffer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <TextView
+                android:id="@+id/textBufferTestDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelBufferTestDuration"/>
+
+            <NumberPicker
+                android:id="@+id/numberpickerBufferTestDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <TextView
+                android:id="@+id/textBufferTestWavePlotDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelBufferTestWavePlotDuration"/>
+
+            <NumberPicker
+                android:id="@+id/numberPickerBufferTestWavePlotDuration"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
 

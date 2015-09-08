@@ -20,15 +20,21 @@
 
     <string name="buttonPlay_play">Refresh Screen</string>
     <string name="buttonPlay_pause">Pause</string>
-    <string name="buttonTest_enabled">Start test</string>
+    <string name="buttonTest_enabled">Latency Test</string>
+    <string name="buttonStopTest">Stop Test</string>
     <string name="buttonTest_disabled">FX Disabled Loopback 2</string>
-    <string name="buttonSave">Save Wavefile</string>
+    <string name="buttonSave">Save Results</string>
     <string name="buttonZoomOutFull">Unzoom</string>
     <string name="buttonZoomOut">Zoom Out</string>
     <string name="buttonZoomIn"> Zoom In</string>
     <string name="buttonAbout">About</string>
-    <string name="buttonBufferPeriod">Buffer Period</string>
-    <string name="histTitle">Frequency vs. Buffer Period (ms) Plot</string>
+    <string name="buttonRecorderBufferPeriod">Recorder</string>
+    <string name="buttonPlayerBufferPeriod">Player</string>
+    <string name="ReadHistTitle">Frequency vs. Recorder Buffer Period (ms) Plot</string>
+    <string name="WriteHistTitle">Frequency vs. Player Buffer Period (ms) Plot</string>
+    <string name="buttonBufferTest">Detect Glitch</string>
+    <string name="buttonGlitches">Show Glitches</string>
+    <string name="showBufferPeriods">Show Buffer Periods: </string>
 
     <!-- disabled -->
     <string name="buttonZoomInFull">In Full</string>
@@ -43,12 +49,44 @@
         <item>CAMCORDER</item>
         <item>VOICE_RECOGNITION</item>
         <item>VOICE_COMMUNICATION</item>
+        <item>REMOTE_SUBMIX_java_only</item>
     </string-array>
 
     <string name="labelInfo">Info...</string>
     <string name="labelSettings">SETTINGS</string>
     <string name="labelAbout">About</string>
     <string name="labelSamplingRate">Sampling Rate</string>
+    <string name="AboutInfo">Round-trip audio latency testing app\n
+        using the Dr. Rick O\'Rang audio loopback dongle.\n
+        Authors: Ricardo Garcia (rago) and Tzu-Yin Tai\n
+        Open source project on:\n
+        https://github.com/gkasten/drrickorang\n
+        References:\n
+        https://source.android.com/devices/audio/latency.html\n
+        https://goo.gl/dxcw0d\n\n\n
+        adb parameters:  all parameters are optional. If not specified, defaults will be used.\n
+        -ei SF \t\t\t\t\t\t\t\t\t\t\t\t ####\t\t sampling frequency \n
+        -es Filename \t\t\t\t\t\t\t ssss\t\t\t output filename \n
+        -ei MicSource \t\t\t\t\t\t\t ####\t\t microphone source\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 0: DEFAULT\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 1: MIC\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 2: CAMCORDER\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 3: VOICE_RECOGNITION\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 4: VOICE_COMMUNICATION\n
+        -ei AudioThread \t\t\t\t\t ####\t\t Audio Thread Type\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 0: Java\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 1: Native (JNI)\n
+        -ei AudioLevel \t\t\t\t\t\t ####\t\t Audio Level [0:15]\n
+        -ei RecorderBuffer \t\t\t\t ####\t\t Recorder Buffer Frames\n
+        -ei PlayerBuffer \t\t\t\t\t\t ####\t\t Player Buffer Frames\n
+        -ei TestType \t\t\t\t\t\t\t\t ####\t\t Audio Test Type\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 222: Latency Test\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 223: Buffer Test\n
+        -ei BufferTestDuration \t ####\t\t Buffer Test Duration \n\n\n
+        Example: adb shell am start -n org.drrickorang.loopback/.LoopbackActivity
+        --ei SF 48000 --es FileName output --ei MicSource 3 --ei AudioThread 1 --ei AudioLevel 12
+        -ei TestType 223 --ei BufferTestDuration 5
+    </string>
 
     <!-- spinnerSamplingRate Options -->
     <string-array name="samplingRate_array">
@@ -67,10 +105,13 @@
         <item>native (JNI)</item>
     </string-array>
 
-    <string name="labelPlaybackBuffer">Playback Buffer (Frames)</string>
-    <string name="labelRecordBuffer">Record Buffer (Frames)</string>
-    <string name="buttonPlaybackDefault">Compute Default Settings</string>
-    <string name="buttonRecordDefault">System Default Record Buffer</string>
+    <string name="labelPlayerBuffer">Player Buffer (Frames) (Max: %1$d)</string>
+    <string name="labelRecorderBuffer">Recorder Buffer (Frames) (Max: %1$d)</string>
+    <string name="buttonDefaultSettings">Compute Default Settings</string>
+    <string name="buttonRecordDefault">System Default Recorder Buffer</string>
+    <string name="labelBufferTestDuration">Buffer Test Duration (Seconds) (Max: %1$d)</string>
+    <string name="labelBufferTestWavePlotDuration">Buffer Test Wave Plot Duration (Seconds)
+                                                   (Max: %1$d)</string>
 
 
 </resources>

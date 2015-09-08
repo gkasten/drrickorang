@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <android/log.h>
 
+
 #ifndef _Included_org_drrickorang_loopback_sles
 #define _Included_org_drrickorang_loopback_sles
 
@@ -31,6 +32,7 @@ extern "C" {
 #endif
 #include <audio_utils/fifo.h>
 
+//TODO fix this
 typedef struct {
     SLuint32 rxBufCount;     // -r#
     SLuint32 txBufCount;     // -t#
@@ -69,24 +71,65 @@ typedef struct {
     SLObjectItf recorderObject;
     SLObjectItf outputmixObject;
     SLObjectItf engineObject;
+
+    int* recorder_buffer_period;
+    int recorder_previous_time_sec;
+    int recorder_previous_time_nsec;
+    int recorder_current_time_sec;
+    int recorder_current_time_nsec;
+    int recorder_buffer_count;
+    int recorder_max_buffer_period;
+
+    int* player_buffer_period;
+    time_t player_previous_time_sec;
+    long player_previous_time_nsec;
+    time_t player_current_time_sec;
+    long player_current_time_nsec;
+    int player_buffer_count;
+    int player_max_buffer_period;
+
+    int testType;
+    double frequency1;
+    double bufferTestPhase1;
+    int count;
+    char* byteBufferPtr;
+    int byteBufferLength;
 } sles_data;
 
 enum {
     SLES_SUCCESS = 0,
     SLES_FAIL = 1,
+    NANOS_PER_MILLI = 1000000,
+    NANOS_PER_SECOND = 1000000000,
+    RANGE = 1002,
+    BUFFER_PERIOD_DISCARD = 10,
+    TEST_TYPE_LATENCY = 222,
+    TEST_TYPE_BUFFER_PERIOD = 223
 } SLES_STATUS_ENUM;
 
-int slesInit( sles_data ** ppSles, int samplingRate, int frameCount, int micSource);
+int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
+             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength);
+
 //note the double pointer to properly free the memory of the structure
-int slesDestroy( sles_data ** ppSles);
+int slesDestroy(sles_data ** ppSles);
 
 
 ///full
 int slesFull(sles_data *pSles);
 
-int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource);
+int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
+                     int testType, double frequency1, char* byteBufferPtr, int byteBufferLength);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
 int slesDestroyServer(sles_data *pSles);
+int* slesGetRecorderBufferPeriod(sles_data *pSles);
+int slesGetRecorderMaxBufferPeriod(sles_data *pSles);
+int* slesGetPlayerBufferPeriod(sles_data *pSles);
+int slesGetPlayerMaxBufferPeriod(sles_data *pSles);
+
+void collectPlayerBufferPeriod(sles_data *pSles);
+void collectRecorderBufferPeriod(sles_data *pSles);
+
+ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count);
 
 #ifdef __cplusplus
 }

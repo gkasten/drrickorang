@@ -16,64 +16,81 @@
 
 package org.drrickorang.loopback;
 
-//import android.content.Context;
-//import android.app.Activity;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-//import android.media.MediaPlayer;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
-import android.util.Log;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
+import android.util.Log;
 import android.os.Handler;
-import  android.os.Message;
+import android.os.Message;
+
 
 /**
  * A thread/audio track based audio synth.
  */
+
 public class NativeAudioThread extends Thread {
+    private static final String TAG = "NativeAudioThread";
 
-    public boolean isRunning = false;
-    double twoPi = 6.28318530718;
+    // for latency test
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED = 891;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_ERROR = 892;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE = 893;
 
-    public int mSessionId;
+    // for buffer test
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STARTED = 896;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_ERROR = 897;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE = 898;
 
-    public double[] mvSamples; //captured samples
-    int mSamplesIndex;
+    // used by both latency test and buffer test
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS = 894;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_STOP = 900;
 
-    private final int mSecondsToRun = 2;
-    public int mSamplingRate = 48000;
-    private int mChannelConfigIn = AudioFormat.CHANNEL_IN_MONO;
-    private int mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
+    public boolean  mIsRunning = false;
+    public int      mSessionId;
+    public double[] mSamples; // store samples that will be shown on WavePlotView
+    int             mSamplesIndex;
 
-    int mMinPlayBufferSizeInBytes = 0;
-    int mMinRecordBuffSizeInBytes = 0;
-    private int mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
+    private int mTestType;
+    private int mSamplingRate;
+    private int mMinPlayerBufferSizeInBytes = 0;
+    private int mMinRecorderBuffSizeInBytes = 0; // currently not used
+    private int mMicSource;
 
-    int mMicSource = 0;
-
-//    private double [] samples = new double[50000];
-
-    boolean isPlaying = false;
+    private boolean mIsRequestStop = false;
     private Handler mMessageHandler;
-    boolean isDestroying = false;
-    boolean hasDestroyingErrors = false;
+    private boolean isDestroying = false;
+    private boolean hasDestroyingErrors = false;
 
-    static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED = 892;
-    static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_ERROR = 893;
-    static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE = 894;
-    static final int FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS = 895;
+    // for buffer test
+    private int[]   mRecorderBufferPeriod;
+    private int     mRecorderMaxBufferPeriod;
+    private int[]   mPlayerBufferPeriod;
+    private int     mPlayerMaxBufferPeriod;
+    private int     mBufferTestWavePlotDurationInSeconds;
+    private double  mFrequency1 = Constant.PRIME_FREQUENCY_1;
+    private double  mFrequency2 = Constant.PRIME_FREQUENCY_2; // not actually used
+    private int     mBufferTestDurationInSeconds;
+    private int     mFFTSamplingSize;
+    private int     mFFTOverlapSamples;
+    private int[]   mAllGlitches;
+    private boolean mGlitchingIntervalTooLong;
 
-    public void setParams(int samplingRate, int playBufferInBytes, int recBufferInBytes, int micSource) {
+    private PipeByteBuffer        mPipeByteBuffer;
+    private GlitchDetectionThread mGlitchDetectionThread;
+
+
+    public NativeAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
+                             int micSource, int testType, int bufferTestDurationInSeconds,
+                             int bufferTestWavePlotDurationInSeconds) {
         mSamplingRate = samplingRate;
-
-        mMinPlayBufferSizeInBytes = playBufferInBytes;
-        mMinRecordBuffSizeInBytes = recBufferInBytes;
-
+        mMinPlayerBufferSizeInBytes = playerBufferInBytes;
+        mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
         mMicSource = micSource;
-
+        mTestType = testType;
+        mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
+        mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
     }
+
 
     //JNI load
     static {
@@ -83,105 +100,149 @@ public class NativeAudioThread extends Thread {
             log("Error loading loopback JNI library");
             e.printStackTrace();
         }
-
         /* TODO: gracefully fail/notify if the library can't be loaded */
     }
 
+
     //jni calls
-    public native long slesInit(int samplingRate, int frameCount, int micSource);
-    public native int slesProcessNext(long sles_data, double[] samples, long offset);
-    public native int slesDestroy(long sles_data);
+    public native long  slesInit(int samplingRate, int frameCount, int micSource,
+                                 int testType, double frequency1, ByteBuffer byteBuffer);
+    public native int   slesProcessNext(long sles_data, double[] samples, long offset);
+    public native int   slesDestroy(long sles_data);
+
+    // to get buffer period data
+    public native int[] slesGetRecorderBufferPeriod(long sles_data);
+    public native int   slesGetRecorderMaxBufferPeriod(long sles_data);
+    public native int[] slesGetPlayerBufferPeriod(long sles_data);
+    public native int   slesGetPlayerMaxBufferPeriod(long sles_data);
+
 
     public void run() {
-
         setPriority(Thread.MAX_PRIORITY);
-        isRunning = true;
+        mIsRunning = true;
 
         //erase output buffer
-        if (mvSamples != null)
-            mvSamples = null;
-
-        //resize
-        int nNewSize = (int)(1.1* mSamplingRate * mSecondsToRun ); //10% more just in case
-        mvSamples = new double[nNewSize];
-        mSamplesIndex = 0; //reset index
-
-        //clear samples
-        for(int i=0; i<nNewSize; i++) {
-            mvSamples[i] = 0;
-        }
+        if (mSamples != null)
+            mSamples = null;
 
         //start playing
-        isPlaying = true;
-
-
         log(" Started capture test");
         if (mMessageHandler != null) {
             Message msg = Message.obtain();
-            msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_STARTED;
+            switch (mTestType) {
+            case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED;
+                break;
+            case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STARTED;
+                break;
+            }
             mMessageHandler.sendMessage(msg);
         }
 
-
-
         log(String.format("about to init, sampling rate: %d, buffer:%d", mSamplingRate,
-                mMinPlayBufferSizeInBytes/2 ));
-        long sles_data = slesInit(mSamplingRate, mMinPlayBufferSizeInBytes/2, mMicSource);
-        log(String.format("sles_data = 0x%X",sles_data));
+                mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME));
 
-        if(sles_data == 0 ) {
+        // mPipeByteBuffer is only used in buffer test
+        mPipeByteBuffer = new PipeByteBuffer(Constant.MAX_SHORTS);
+        long startTimeMs = System.currentTimeMillis();
+        long sles_data = slesInit(mSamplingRate, mMinPlayerBufferSizeInBytes /
+                                  Constant.BYTES_PER_FRAME, mMicSource, mTestType, mFrequency1,
+                                  mPipeByteBuffer.getByteBuffer());
+        log(String.format("sles_data = 0x%X", sles_data));
+
+        if (sles_data == 0) {
             //notify error!!
-
             log(" ERROR at JNI initialization");
             if (mMessageHandler != null) {
                 Message msg = Message.obtain();
-                msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_ERROR;
+                switch (mTestType) {
+                case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                    msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_ERROR;
+                    break;
+                case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                    msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_ERROR;
+                    break;
+                }
                 mMessageHandler.sendMessage(msg);
             }
-        }  else {
-
-            //wait a little bit...
+        } else {
+            // wait a little bit
             try {
-                sleep(10); //just to let it start properly?
+                final int setUpTime = 10;
+                sleep(setUpTime); //just to let it start properly
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
 
-
-            mSamplesIndex = 0;
             int totalSamplesRead = 0;
-            long offset = 0;
-            for (int ii = 0; ii < mSecondsToRun; ii++) {
-                log(String.format("block %d...", ii));
-                int samplesRead = slesProcessNext(sles_data, mvSamples,offset);
-                totalSamplesRead += samplesRead;
+            switch (mTestType) {
+            case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                final int latencyTestDurationInSeconds = 2;
+                int nNewSize = (int) (1.1 * mSamplingRate * latencyTestDurationInSeconds);
+                mSamples = new double[nNewSize];
+                mSamplesIndex = 0; //reset index
+                Arrays.fill(mSamples, 0);
 
-                offset += samplesRead;
-                log(" [" + ii + "] jni samples read:" + samplesRead + "  currentOffset:" + offset);
+                //TODO use a ByteBuffer to retrieve recorded data instead
+                long offset = 0;
+                // retrieve native recorder's recorded data
+                for (int ii = 0; ii < latencyTestDurationInSeconds; ii++) {
+                    log(String.format("block %d...", ii));
+                    int samplesRead = slesProcessNext(sles_data, mSamples, offset);
+                    totalSamplesRead += samplesRead;
+                    offset += samplesRead;
+                    log(" [" + ii + "] jni samples read:" + samplesRead +
+                        "  currentOffset:" + offset);
+                }
 
-//                log(" [" + ii + "] jni samples read:" + samplesRead + "  currentSampleIndex:" + mSamplesIndex);
-//                {
-//                    for (int jj = 0; jj < samplesRead && mSamplesIndex < mvSamples.length; jj++) {
-//                        mvSamples[mSamplesIndex++] = samples[jj];
-//                    }
-//                }
+                log(String.format(" samplesRead: %d, sampleOffset:%d", totalSamplesRead, offset));
+                log("about to destroy...");
+                break;
+            case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                //TODO adjust sound level to appropriate level before doing native buffer test
+                setUpGlitchDetectionThread();
+                long testDurationMs = mBufferTestDurationInSeconds * Constant.MILLIS_PER_SECOND;
+                long elapsedTimeMs = System.currentTimeMillis() - startTimeMs;
+                while (elapsedTimeMs < testDurationMs) {
+                    if (mIsRequestStop) {
+                        break;
+                    } else {
+                        try {
+                            final int setUpTime = 100;
+                            sleep(setUpTime); //just to let it start properly
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        elapsedTimeMs = System.currentTimeMillis() - startTimeMs;
+                    }
+
+                }
+                break;
+
+
             }
 
-            //log(String.format(" samplesRead: %d, samplesIndex:%d", totalSamplesRead, mSamplesIndex));
-            log(String.format(" samplesRead: %d, sampleOffset:%d", totalSamplesRead, offset));
-            log(String.format("about to destroy..."));
-//        int status = slesDestroy(sles_data);
-//        log(String.format("sles delete status: %d", status));
+            // collect buffer period data
+            mRecorderBufferPeriod = slesGetRecorderBufferPeriod(sles_data);
+            mRecorderMaxBufferPeriod = slesGetRecorderMaxBufferPeriod(sles_data);
+            mPlayerBufferPeriod = slesGetPlayerBufferPeriod(sles_data);
+            mPlayerMaxBufferPeriod = slesGetPlayerMaxBufferPeriod(sles_data);
 
+            // get glitches data only for buffer test
+            if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD) {
+                mAllGlitches = mGlitchDetectionThread.getGlitches();
+                mSamples = mGlitchDetectionThread.getWaveData();
+                mGlitchingIntervalTooLong = mGlitchDetectionThread.getGlitchingIntervalTooLong();
+                endDetecting();
+            }
 
             runDestroy(sles_data);
 
-            int maxTry = 20;
+            final int maxTry = 20;
             int tryCount = 0;
-            //isDestroying = true;
             while (isDestroying) {
-
                 try {
                     sleep(40);
                 } catch (InterruptedException e) {
@@ -189,7 +250,6 @@ public class NativeAudioThread extends Thread {
                 }
 
                 tryCount++;
-
                 log("destroy try: " + tryCount);
 
                 if (tryCount >= maxTry) {
@@ -200,26 +260,66 @@ public class NativeAudioThread extends Thread {
             }
             log(String.format("after destroying. TotalSamplesRead = %d", totalSamplesRead));
 
-            if(totalSamplesRead==0)
-            {
-                hasDestroyingErrors = true;
+            // for buffer test samples won't be read into here
+            if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY
+                && totalSamplesRead == 0) {
+                //hasDestroyingErrors = true;
+                log("Warning: Latency test reads no sample from native recorder!");
             }
 
             endTest();
         }
     }
 
+
+    public void requestStopTest() {
+        mIsRequestStop = true;
+    }
+
+
+    /** Set up parameters needed for GlitchDetectionThread, then create and run this thread. */
+    private void setUpGlitchDetectionThread() {
+        final int targetFFTMs = 20; // we want each FFT to cover 20ms of samples
+        mFFTSamplingSize = targetFFTMs * mSamplingRate / Constant.MILLIS_PER_SECOND;
+        // round to the nearest power of 2
+        mFFTSamplingSize = (int) Math.pow(2, Math.round(Math.log(mFFTSamplingSize) / Math.log(2)));
+
+        if (mFFTSamplingSize < 2) {
+            mFFTSamplingSize = 2; // mFFTSamplingSize should be at least 2
+        }
+        mFFTOverlapSamples = mFFTSamplingSize / 2; // mFFTOverlapSamples is half of mFFTSamplingSize
+
+        mGlitchDetectionThread = new GlitchDetectionThread(mFrequency1, mFrequency2, mSamplingRate,
+            mFFTSamplingSize, mFFTOverlapSamples, mBufferTestDurationInSeconds,
+            mBufferTestWavePlotDurationInSeconds, mPipeByteBuffer);
+        mGlitchDetectionThread.start();
+    }
+
+
+    public void endDetecting() {
+        mPipeByteBuffer.flush();
+        mPipeByteBuffer = null;
+        mGlitchDetectionThread.requestStop();
+        GlitchDetectionThread tempThread = mGlitchDetectionThread;
+        mGlitchDetectionThread = null;
+        try {
+            tempThread.join(Constant.JOIN_WAIT_TIME_MS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     public void setMessageHandler(Handler messageHandler) {
         mMessageHandler = messageHandler;
     }
 
-    private void runDestroy(final long sles_data ) {
+
+    private void runDestroy(final long sles_data) {
         isDestroying = true;
 
         //start thread
-
         final long local_sles_data = sles_data;
-        ////
         Thread thread = new Thread(new Runnable() {
             public void run() {
                 isDestroying = true;
@@ -232,57 +332,103 @@ public class NativeAudioThread extends Thread {
         });
 
         thread.start();
-
-
-
         log("end of runDestroy()");
-
-
     }
 
-    public void togglePlay() {
 
-    }
-
+    /** not doing real work, just to keep consistency with LoopbackAudioThread. */
     public void runTest() {
 
+    }
+
+
+    /** not doing real work, just to keep consistency with LoopbackAudioThread. */
+    public void runBufferTest() {
 
     }
 
-   public void endTest() {
+
+    public void endTest() {
        log("--Ending capture test--");
-       isPlaying = false;
-
-
        if (mMessageHandler != null) {
            Message msg = Message.obtain();
-           if(hasDestroyingErrors)
-               msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS;
-           else
-               msg.what = FUN_PLUG_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE;
+           if (hasDestroyingErrors) {
+               msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS;
+           } else if (mIsRequestStop) {
+               msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_STOP;
+           } else {
+               switch (mTestType) {
+               case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                   msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE;
+                   break;
+               case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                   msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE;
+                   break;
+               }
+           }
+
            mMessageHandler.sendMessage(msg);
        }
+    }
 
-   }
 
     public void finish() {
-
-        if (isRunning) {
-            isRunning = false;
-            try {
-                sleep(20);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+        mIsRunning = false;
     }
+
 
     private static void log(String msg) {
-        Log.v("Loopback", msg);
+        Log.v(TAG, msg);
     }
 
-    double [] getWaveData () {
-        return mvSamples;
+
+    double[] getWaveData() {
+        return mSamples;
     }
 
-}  //end thread.
+
+    public int[] getRecorderBufferPeriod() {
+        return mRecorderBufferPeriod;
+    }
+
+
+    public int getRecorderMaxBufferPeriod() {
+        return mRecorderMaxBufferPeriod;
+    }
+
+
+    public int[] getPlayerBufferPeriod() {
+        return mPlayerBufferPeriod;
+    }
+
+
+    public int getPlayerMaxBufferPeriod() {
+        return mPlayerMaxBufferPeriod;
+    }
+
+
+    public int[] getNativeAllGlitches() {
+        return mAllGlitches;
+    }
+
+
+    public boolean getGlitchingIntervalTooLong() {
+        return mGlitchingIntervalTooLong;
+    }
+
+
+    public int getNativeFFTSamplingSize() {
+        return mFFTSamplingSize;
+    }
+
+
+    public int getNativeFFTOverlapSamples() {
+        return mFFTOverlapSamples;
+    }
+
+
+    public int getDurationInSeconds() {
+        return mBufferTestDurationInSeconds;
+    }
+
+}
