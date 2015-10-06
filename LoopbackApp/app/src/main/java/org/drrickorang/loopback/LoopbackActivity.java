@@ -21,11 +21,13 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.util.Arrays;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.media.AudioManager;
@@ -37,6 +39,8 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.Gravity;
@@ -63,6 +67,7 @@ public class LoopbackActivity extends Activity {
     private static final int SAVE_PLAYER_BUFFER_PERIOD_TO_TXT_REQUEST = 46;
     private static final int SETTINGS_ACTIVITY_REQUEST_CODE = 54;
     private static final int THREAD_SLEEP_DURATION_MS = 200;
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 201;
 
     LoopbackAudioThread  mAudioThread = null;
     NativeAudioThread    mNativeAudioThread = null;
@@ -699,11 +704,18 @@ public class LoopbackActivity extends Activity {
 
     /** Start the latency test. */
     public void onButtonLatencyTest(View view) {
-        startLatencyTest();
+
+        // Ensure we have RECORD_AUDIO permissions
+        // On Android M (API 23) we must request dangerous permissions each time we use them
+        if (hasRecordAudioPermission()){
+            startLatencyTest();
+        } else {
+            requestRecordAudioPermission();
+        }
     }
 
-
     private void startLatencyTest() {
+
         if (!isBusy()) {
             mBarMasterLevel.setEnabled(false);
             resetBufferPeriodRecord(mRecorderBufferPeriod, mPlayerBufferPeriod);
@@ -735,11 +747,17 @@ public class LoopbackActivity extends Activity {
 
     /** Start the Buffer (Glitch Detection) Test. */
     public void onButtonBufferTest(View view) {
-        startBufferTest();
+
+        if (hasRecordAudioPermission()){
+            startBufferTest();
+        } else {
+            requestRecordAudioPermission();
+        }
     }
 
 
     private void startBufferTest() {
+
         if (!isBusy()) {
             mBarMasterLevel.setEnabled(false);
             resetBufferPeriodRecord(mRecorderBufferPeriod, mPlayerBufferPeriod);
@@ -1596,4 +1614,47 @@ public class LoopbackActivity extends Activity {
         }
         return count;
     }
+
+    /**
+     * Check whether we have the RECORD_AUDIO permission
+     * @return true if we do
+     */
+    private boolean hasRecordAudioPermission(){
+        boolean hasPermission = (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+
+        log("Has RECORD_AUDIO permission? " + hasPermission);
+        return hasPermission;
+    }
+
+    /**
+     * Requests the RECORD_AUDIO permission from the user
+     */
+    private void requestRecordAudioPermission(){
+
+        String requiredPermission = Manifest.permission.RECORD_AUDIO;
+
+        // If the user previously denied this permission then show a message explaining why
+        // this permission is needed
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                requiredPermission)) {
+
+            showToast("This app needs to record audio through the microphone to test the device's performance");
+        }
+
+        // request the permission.
+        ActivityCompat.requestPermissions(this,
+                new String[]{requiredPermission},
+                PERMISSIONS_REQUEST_RECORD_AUDIO);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+
+        // We can ignore this call since we'll check for RECORD_AUDIO each time the
+        // user does anything which requires that permission. We can't, however, delete
+        // this method as this will cause ActivityCompat.requestPermissions to fail.
+    }
+
 }
