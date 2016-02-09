@@ -28,6 +28,9 @@ public class LoadThread extends Thread {
 
     private volatile boolean mIsRunning;
 
+    public LoadThread(String threadName) {
+        super(threadName);
+    }
 
     public void run() {
         log("Entering load thread");

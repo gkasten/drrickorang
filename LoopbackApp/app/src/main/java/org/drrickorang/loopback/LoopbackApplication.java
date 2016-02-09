@@ -39,13 +39,14 @@ public class LoopbackApplication extends Application {
 
     // here defines all the initial setting values, some get modified in ComputeDefaults()
     private int mSamplingRate = 48000;
+    private int mChannelIndex = -1;
     private int mPlayerBufferSizeInBytes = 0; // for both native and java
     private int mRecorderBuffSizeInBytes = 0; // for both native and java
     private int mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA; //0:Java, 1:Native (JNI)
     private int mMicSource = 3; //maps to MediaRecorder.AudioSource.VOICE_RECOGNITION;
     private int mBufferTestDurationInSeconds = 5;
     private int mBufferTestWavePlotDurationInSeconds = 7;
-
+    private int mNumberOfLoadThreads = 4;
 
     public void setDefaults() {
         if (isSafeToUseSles()) {
@@ -57,16 +58,17 @@ public class LoopbackApplication extends Application {
         computeDefaults();
     }
 
-
     int getSamplingRate() {
         return mSamplingRate;
     }
 
-
     void setSamplingRate(int samplingRate) {
-        mSamplingRate = samplingRate;
+        mSamplingRate = clamp(samplingRate, Constant.SAMPLING_RATE_MIN, Constant.SAMPLING_RATE_MAX);
     }
 
+    int getChannelIndex() { return mChannelIndex; }
+
+    void setChannelIndex(int channelIndex) { mChannelIndex = channelIndex; }
 
     int getAudioThreadType() {
         return mAudioThreadType;
@@ -74,7 +76,12 @@ public class LoopbackApplication extends Application {
 
 
     void setAudioThreadType(int audioThreadType) {
-        mAudioThreadType = audioThreadType;
+        if (isSafeToUseSles() && audioThreadType != Constant.AUDIO_THREAD_TYPE_JAVA) {
+            //safe to use native and Java thread not selected
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE;
+        } else {
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA;
+        }
     }
 
 
@@ -155,7 +162,8 @@ public class LoopbackApplication extends Application {
 
 
     void setPlayerBufferSizeInBytes(int playerBufferSizeInBytes) {
-        mPlayerBufferSizeInBytes = playerBufferSizeInBytes;
+        mPlayerBufferSizeInBytes = clamp(playerBufferSizeInBytes, Constant.PLAYER_BUFFER_FRAMES_MIN,
+                Constant.PLAYER_BUFFER_FRAMES_MAX);
     }
 
 
@@ -165,7 +173,8 @@ public class LoopbackApplication extends Application {
 
 
     void setRecorderBufferSizeInBytes(int recorderBufferSizeInBytes) {
-        mRecorderBuffSizeInBytes = recorderBufferSizeInBytes;
+        mRecorderBuffSizeInBytes = clamp(recorderBufferSizeInBytes,
+                Constant.RECORDER_BUFFER_FRAMES_MIN, Constant.RECORDER_BUFFER_FRAMES_MAX);
     }
 
 
@@ -175,7 +184,9 @@ public class LoopbackApplication extends Application {
 
 
     void setBufferTestDuration(int bufferTestDurationInSeconds) {
-        mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
+        mBufferTestDurationInSeconds = clamp(bufferTestDurationInSeconds,
+                Constant.BUFFER_TEST_DURATION_SECONDS_MIN,
+                Constant.BUFFER_TEST_DURATION_SECONDS_MAX);
     }
 
 
@@ -185,7 +196,31 @@ public class LoopbackApplication extends Application {
 
 
     void setBufferTestWavePlotDuration(int bufferTestWavePlotDurationInSeconds) {
-        mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
+        mBufferTestWavePlotDurationInSeconds = clamp(bufferTestWavePlotDurationInSeconds,
+                Constant.BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MIN,
+                Constant.BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MAX);
+    }
+
+    int getNumberOfLoadThreads() {
+        return mNumberOfLoadThreads;
+    }
+
+    void setNumberOfLoadThreads(int numberOfLoadThreads) {
+        mNumberOfLoadThreads = clamp(numberOfLoadThreads, Constant.MIN_NUM_LOAD_THREADS,
+                Constant.MAX_NUM_LOAD_THREADS);
+    }
+
+    /**
+     * Returns value if value is within inclusive bounds min through max
+     * otherwise returns min or max according to if value is less than or greater than the range
+     */
+    private int clamp(int value, int min, int max) {
+
+        if (max < min) throw new UnsupportedOperationException("min must be <= max");
+
+        if (value < min) return min;
+        else if (value > max) return max;
+        else return value;
     }
 
 

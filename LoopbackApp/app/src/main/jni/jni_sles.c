@@ -23,15 +23,18 @@
 
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
   (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource,
-   jint testType, jdouble frequency1, jobject byteBuffer) {
+   jint testType, jdouble frequency1, jobject byteBuffer, jshortArray loopbackTone) {
 
     sles_data * pSles = NULL;
 
     char* byteBufferPtr = (*env)->GetDirectBufferAddress(env, byteBuffer);
     int byteBufferLength = (*env)->GetDirectBufferCapacity(env, byteBuffer);
 
+    short* loopbackToneArray = (*env)->GetShortArrayElements(env, loopbackTone, 0);
+
     if (slesInit(&pSles, samplingRate, frameCount, micSource,
-                 testType, frequency1, byteBufferPtr, byteBufferLength) != SLES_FAIL) {
+                 testType, frequency1, byteBufferPtr, byteBufferLength,
+                 loopbackToneArray) != SLES_FAIL) {
         return (long) pSles;
     }
 

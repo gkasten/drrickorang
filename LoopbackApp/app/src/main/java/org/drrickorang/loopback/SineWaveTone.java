@@ -26,7 +26,6 @@ package org.drrickorang.loopback;
 public class SineWaveTone extends ToneGeneration {
     private int          mCount; // counts the total samples produced.
     private double       mPhase; // current phase
-    private double       mAmplitude;  // this value should be from 0 to 1.0
     private final double mPhaseIncrement; // phase incrementation associated with mFrequency
 
 

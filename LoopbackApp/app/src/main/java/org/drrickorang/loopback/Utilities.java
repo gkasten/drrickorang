@@ -25,7 +25,7 @@ public class Utilities {
 
 
     /** Multiply the input array with a hanning window. */
-    public static double[] hanningWindow(double[] samples) {
+    public static void hanningWindow(double[] samples) {
         int length = samples.length;
         final double alpha = 0.5;
         final double beta = 0.5;
@@ -35,7 +35,6 @@ public class Utilities {
             samples[i] *= alpha - beta * Math.cos(coefficient);
         }
 
-        return samples;
     }
 
 

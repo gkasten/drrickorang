@@ -37,7 +37,7 @@ public abstract class Pipe {
 
     /**
      * Read at most "count" number of samples into array "buffer", starting from index "offset".
-     * Ff the available samples to read is smaller than count, just read as much as it can and
+     * If the available samples to read is smaller than count, just read as much as it can and
      * return the amount of samples read (non-blocking). offset + count must be <= buffer.length.
      */
     public abstract int read(short[] buffer, int offset, int count);

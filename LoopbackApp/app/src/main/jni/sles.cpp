@@ -26,23 +26,14 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
-
 #include "sles.h"
 #include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-
 #include <assert.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-//#include <jni.h>
-#include <time.h>
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
-             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength) {
+             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
+             short* loopbackTone) {
     int status = SLES_FAIL;
     if (ppSles != NULL) {
         sles_data * pSles = (sles_data*) malloc(sizeof(sles_data));
@@ -57,8 +48,8 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSourc
         {
             SLES_PRINTF("creating server. Sampling rate =%d, frame count = %d",
                         samplingRate, frameCount);
-            status = slesCreateServer(pSles, samplingRate, frameCount, micSource,
-                                      testType, frequency1, byteBufferPtr, byteBufferLength);
+            status = slesCreateServer(pSles, samplingRate, frameCount, micSource, testType,
+                                      frequency1, byteBufferPtr, byteBufferLength, loopbackTone);
             SLES_PRINTF("slesCreateServer =%d", status);
         }
     }
@@ -269,7 +260,8 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
             }
 
             if (pSles->injectImpulse == -1) {   // here we inject pulse
-                // Experimentally, a single frame impulse was insufficient to trigger feedback.
+
+                /*// Experimentally, a single frame impulse was insufficient to trigger feedback.
                 // Also a Nyquist frequency signal was also insufficient, probably because
                 // the response of output and/or input path was not adequate at high frequencies.
                 // This short burst of a few cycles of square wave at Nyquist/4 found to work well.
@@ -280,7 +272,15 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
                                                                             j < 4 ? 0x7FFF : 0x8000;
                         }
                     }
+                }*/
+
+                //inject java generated tone
+                for (unsigned i = 0; i < pSles->bufSizeInFrames; ++i) {
+                    for (unsigned k = 0; k < pSles->channels; ++k) {
+                        ((short *) buffer)[i * pSles->channels + k] = pSles->loopbackTone[i];
+                    }
                 }
+
                 pSles->injectImpulse = 0;
             }
         } else if (pSles->testType == TEST_TYPE_BUFFER_PERIOD) {
@@ -292,7 +292,9 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
             bool isGlitchEnabled = false;
             for (unsigned i = 0; i < pSles->bufSizeInFrames; i++) {
                 value = (short) (sin(pSles->bufferTestPhase1) * maxShort * amplitude);
-                ((short *) buffer)[i] = value;
+                for (unsigned k = 0; k < pSles->channels; ++k) {
+                    ((short *) buffer)[i* pSles->channels + k] = value;
+                }
 
                 pSles->bufferTestPhase1 += twoPi * phaseIncrement;
                 // insert glitches if isGlitchEnabled == true, and insert it for every second
@@ -367,7 +369,8 @@ void collectPlayerBufferPeriod(sles_data *pSles) {
 
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
-                     int testType, double frequency1, char* byteBufferPtr, int byteBufferLength) {
+                     int testType, double frequency1, char *byteBufferPtr, int byteBufferLength,
+                     short *loopbackTone) {
     int status = SLES_FAIL;
 
     if (pSles != NULL) {
@@ -515,6 +518,9 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         pSles->count = 0;
         pSles->byteBufferPtr = byteBufferPtr;
         pSles->byteBufferLength = byteBufferLength;
+
+        //init loopback tone
+        pSles->loopbackTone = loopbackTone;
 
         SLresult result;
 

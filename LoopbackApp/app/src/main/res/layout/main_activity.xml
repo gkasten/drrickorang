@@ -35,35 +35,24 @@
 
             <Button
                 xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonTest"
+                android:id="@+id/buttonStartLatencyTest"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/buttonTest_enabled"
+                android:drawableLeft="@drawable/ic_play_arrow"
+                style="@style/TextAppearance.AppCompat.Button"
                 android:onClick="onButtonLatencyTest"/>
 
             <Button
                 xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonStopTest"
+                android:id="@+id/buttonStartBufferTest"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/buttonStopTest"
-                android:onClick="onButtonStopTest"/>
+                android:text="@string/buttonBufferTest"
+                android:drawableLeft="@drawable/ic_play_arrow"
+                style="@style/TextAppearance.AppCompat.Button"
+                android:onClick="onButtonBufferTest"/>
 
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonSave"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonSave"
-                android:onClick="onButtonSave"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonSettings"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonSettings"
-                android:onClick="onButtonSettings"/>
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -73,117 +62,6 @@
         android:layout_height="wrap_content"
         android:textColor="#000000"
         android:text="@string/labelInfo"/>
-
-    <HorizontalScrollView
-        android:id="@+id/ScrollView2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <LinearLayout
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonZoomIn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonZoomIn"
-                android:onClick="onButtonZoomIn"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonZoomOut"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonZoomOut"
-                android:onClick="onButtonZoomOut"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonZoomOutFull"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonZoomOutFull"
-                android:onClick="onButtonZoomOutFull"/>
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonAbout"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonAbout"
-                android:onClick="onButtonAbout"/>
-        </LinearLayout>
-    </HorizontalScrollView>
-
-    <HorizontalScrollView
-        android:id="@+id/ScrollView3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <LinearLayout
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonBufferTest"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonBufferTest"
-                android:onClick="onButtonBufferTest"/>
-
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonGlitches"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonGlitches"
-                android:onClick="onButtonGlitches"/>
-        </LinearLayout>
-    </HorizontalScrollView>
-
-    <HorizontalScrollView
-        android:id="@+id/ScrollView4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <LinearLayout
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/bufferPeriods"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#000000"
-                android:textSize="18sp"
-                android:text="@string/showBufferPeriods"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonRecorderBufferPeriod"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonRecorderBufferPeriod"
-                android:onClick="onButtonRecorderBufferPeriod"/>
-
-            <Button
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:id="@+id/buttonPlayerBufferPeriod"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/buttonPlayerBufferPeriod"
-                android:onClick="onButtonPlayerBufferPeriod"/>
-        </LinearLayout>
-    </HorizontalScrollView>
 
     <LinearLayout
         android:orientation="horizontal"
@@ -206,6 +84,50 @@
             style="?android:attr/progressBarStyleHorizontal" />
     </LinearLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/glitchReportPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="invisible">
+        <LinearLayout
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonGlitches"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawableLeft="@drawable/ic_description"
+                style="@style/TextAppearance.AppCompat.Button"
+                android:text="@string/buttonGlitches"
+                android:onClick="onButtonGlitches"/>
+
+            <Button
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonRecorderBufferPeriod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawableLeft="@drawable/ic_assessment"
+                style="@style/TextAppearance.AppCompat.Button"
+                android:text="@string/buttonRecorderBufferPeriod"
+                android:onClick="onButtonRecorderBufferPeriod"/>
+
+            <Button
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonPlayerBufferPeriod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawableLeft="@drawable/ic_assessment"
+                style="@style/TextAppearance.AppCompat.Button"
+                android:text="@string/buttonPlayerBufferPeriod"
+                android:onClick="onButtonPlayerBufferPeriod"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
@@ -214,8 +136,9 @@
         <TextView
             android:layout_width="250dp"
             android:layout_height="wrap_content"
-            android:text="latency"
-            android:id="@+id/textViewEstimatedLatency"
+            android:text=""
+            android:id="@+id/resultSummary"
+            android:visibility="invisible"
             android:textStyle="bold"/>
     </LinearLayout>
 
@@ -234,5 +157,94 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"/>
     </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/zoomAndSaveControlPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="left"
+        android:padding="10dp"
+        android:visibility="invisible"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true">
+
+            <ImageButton
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonZoomOutFull"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:paddingEnd="5dp"
+                android:paddingRight="5dp"
+                android:paddingLeft="5dp"
+                android:text="@string/buttonZoomOutFull"
+                android:src="@drawable/ic_zoom_out_full"
+                android:background="@null"
+                android:onClick="onButtonZoomOutFull"/>
+
+            <ImageButton
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonZoomOut"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:paddingEnd="5dp"
+                android:paddingRight="5dp"
+                android:paddingLeft="5dp"
+                android:text="@string/buttonZoomOut"
+                android:src="@drawable/ic_zoom_out"
+                android:background="@null"
+                android:onClick="onButtonZoomOut"/>
+
+            <ImageButton
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonZoomIn"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:paddingEnd="5dp"
+                android:paddingRight="5dp"
+                android:paddingLeft="5dp"
+                android:text="@string/buttonZoomIn"
+                android:src="@drawable/ic_zoom_in"
+                android:background="@null"
+                android:onClick="onButtonZoomIn"/>
+
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true">
+
+            <ImageButton
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonReport"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:paddingEnd="5dp"
+                android:paddingRight="5dp"
+                android:paddingLeft="5dp"
+                android:src="@drawable/ic_report"
+                android:text="@string/buttonSave"
+                android:background="@null"
+                android:onClick="onButtonReport"/>
+
+            <ImageButton
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/buttonSave"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:paddingEnd="5dp"
+                android:paddingRight="5dp"
+                android:paddingLeft="5dp"
+                android:src="@drawable/ic_save"
+                android:text="@string/buttonSave"
+                android:background="@null"
+                android:onClick="onButtonSave"/>
+
+        </LinearLayout>
+
+    </RelativeLayout>
 
 </LinearLayout>

@@ -23,6 +23,7 @@ package org.drrickorang.loopback;
 
 public abstract class ToneGeneration {
     protected int     mSamplingRate;
+    protected double  mAmplitude;  // this value should be from 0 to 1.0
     protected boolean mIsGlitchEnabled = false; // indicates we are inserting glitches or not
 
 
@@ -53,6 +54,10 @@ public abstract class ToneGeneration {
      */
     public void setGlitchEnabled(boolean isGlitchEnabled) {
         mIsGlitchEnabled = isGlitchEnabled;
+    }
+
+    public void setAmplitude(double amplitude) {
+        mAmplitude = amplitude;
     }
 
 }

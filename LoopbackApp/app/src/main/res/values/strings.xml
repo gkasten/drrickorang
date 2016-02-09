@@ -20,8 +20,7 @@
 
     <string name="buttonPlay_play">Refresh Screen</string>
     <string name="buttonPlay_pause">Pause</string>
-    <string name="buttonTest_enabled">Latency Test</string>
-    <string name="buttonStopTest">Stop Test</string>
+    <string name="buttonTest_enabled">Round-Trip\nLatency Test</string>
     <string name="buttonTest_disabled">FX Disabled Loopback 2</string>
     <string name="buttonSave">Save Results</string>
     <string name="buttonZoomOutFull">Unzoom</string>
@@ -32,9 +31,9 @@
     <string name="buttonPlayerBufferPeriod">Player</string>
     <string name="ReadHistTitle">Frequency vs. Recorder Buffer Period (ms) Plot</string>
     <string name="WriteHistTitle">Frequency vs. Player Buffer Period (ms) Plot</string>
-    <string name="buttonBufferTest">Detect Glitch</string>
-    <string name="buttonGlitches">Show Glitches</string>
-    <string name="showBufferPeriods">Show Buffer Periods: </string>
+    <string name="buttonBufferTest">Buffer Period\n&amp; Glitch Test</string>
+    <string name="buttonGlitches">Glitches</string>
+    <string name="numGlitches">Total Number of Glitches:</string>
 
     <!-- disabled -->
     <string name="buttonZoomInFull">In Full</string>
@@ -58,7 +57,7 @@
     <string name="labelSamplingRate">Sampling Rate</string>
     <string name="AboutInfo">Round-trip audio latency testing app\n
         using the Dr. Rick O\'Rang audio loopback dongle.\n
-        Authors: Ricardo Garcia (rago) and Tzu-Yin Tai\n
+        Authors: Ricardo Garcia (rago), Tzu-Yin Tai, and Brandon Swanson\n
         Open source project on:\n
         https://github.com/gkasten/drrickorang\n
         References:\n
@@ -82,10 +81,11 @@
         -ei TestType \t\t\t\t\t\t\t\t ####\t\t Audio Test Type\n
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 222: Latency Test\n
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 223: Buffer Test\n
-        -ei BufferTestDuration \t ####\t\t Buffer Test Duration \n\n\n
+        -ei BufferTestDuration \t ####\t\t Buffer Test Duration \n
+        -ei NumLoadThreads \t ####\t\t Number of Simulated Load Threads (0 - ~10)\n\n\n
         Example: adb shell am start -n org.drrickorang.loopback/.LoopbackActivity
         --ei SF 48000 --es FileName output --ei MicSource 3 --ei AudioThread 1 --ei AudioLevel 12
-        -ei TestType 223 --ei BufferTestDuration 5
+        --ei TestType 223 --ei BufferTestDuration 5
     </string>
 
     <!-- spinnerSamplingRate Options -->
@@ -105,6 +105,21 @@
         <item>native (JNI)</item>
     </string-array>
 
+    <string name="labelChannelIndex">Channel Index</string>
+
+    <!-- spinnerChannelIndex Options -->
+    <string-array name="channelIndex_array">
+        <item>Mono</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+    </string-array>
+
     <string name="labelPlayerBuffer">Player Buffer (Frames) (Max: %1$d)</string>
     <string name="labelRecorderBuffer">Recorder Buffer (Frames) (Max: %1$d)</string>
     <string name="buttonDefaultSettings">Compute Default Settings</string>
@@ -112,6 +127,9 @@
     <string name="labelBufferTestDuration">Buffer Test Duration (Seconds) (Max: %1$d)</string>
     <string name="labelBufferTestWavePlotDuration">Buffer Test Wave Plot Duration (Seconds)
                                                    (Max: %1$d)</string>
-
+    <string name="loadThreadsLabel">Number of Simulated Load Threads</string>
+    <string name="SaveFileDialogLabel">Save Files To:</string>
+    <string name="SaveFileDialogOK">//mnt/sdcard/</string>
+    <string name="SaveFileDialogChooseFilenames">Choose Filenames \n and Location</string>
 
 </resources>

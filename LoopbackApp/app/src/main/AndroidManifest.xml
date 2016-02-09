@@ -23,8 +23,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.drrickorang.loopback"
 
-    android:versionCode="8"
-    android:versionName="0.8">
+    android:versionCode="9"
+    android:versionName="0.9">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -55,7 +55,9 @@
             android:parentActivityName="org.drrickorang.loopback.LoopbackActivity"
             android:screenOrientation="sensorPortrait"
             android:theme="@android:style/Theme.Holo.Light"
-            android:configChanges="orientation|keyboardHidden|screenLayout">
+            android:configChanges="orientation|screenLayout"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="org.drrickorang.loopback.LoopbackActivity"/>
@@ -84,16 +86,6 @@
         <activity
             android:name=".PlayerBufferPeriodActivity"
             android:label="Player Buffer Period Histogram"
-            android:parentActivityName="org.drrickorang.loopback.LoopbackActivity"
-            android:theme="@android:style/Theme.Holo.Light">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="org.drrickorang.loopback.LoopbackActivity" />
-        </activity>
-
-        <activity
-            android:name="org.drrickorang.loopback.GlitchesActivity"
-            android:label="List of Glitches"
             android:parentActivityName="org.drrickorang.loopback.LoopbackActivity"
             android:theme="@android:style/Theme.Holo.Light">
             <meta-data

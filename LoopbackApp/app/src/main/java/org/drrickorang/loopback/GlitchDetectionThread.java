@@ -39,22 +39,27 @@ public class GlitchDetectionThread extends Thread {
 
     private double  mDoubleBuffer[]; // keep the data used for FFT calculation
     private boolean mIsFirstFFT = true; // whether or not it's the first FFT calculation
-    private double  mWaveData[]; // data that will be plotted
-    private int     mWaveDataIndex = 0;
 
-    private double  mFrequency1;
-    private double  mFrequency2; //currently not used
-    private int     mSamplingRate;
-    private int     mFFTSamplingSize;   // amount of samples used to perform a FFT
-    private int     mFFTOverlapSamples; // amount of overlapped samples used between two FFTs
-    private int     mNewSamplesPerFFT;  // amount of new samples (not from last FFT) in a FFT
+    private WaveDataRingBuffer mWaveDataRing; // Record last n seconds of wave data
+
+    private final double  mFrequency1;
+    private final double  mFrequency2; //currently not used
+    private final int     mSamplingRate;
+    private final int     mFFTSamplingSize;   // amount of samples used to perform a FFT
+    private final int     mFFTOverlapSamples; // amount of overlapped samples used between two FFTs
+    private final int     mNewSamplesPerFFT;  // amount of new samples (not from last FFT) in a FFT
     private double  mCenterOfMass;  // expected center of mass of samples
-    private int[]   mGlitches;  // for every value = n, n is the nth FFT where a glitch is found
+
+    private final int[]   mGlitches;  // for every value = n, n is nth FFT where a glitch is found
     private int     mGlitchesIndex;
     private int     mFFTCount; // store the current number of FFT performed
     private FFT     mFFT;
     private boolean mGlitchingIntervalTooLong = false; // true if mGlitches is full
 
+    //Pre-Allocated buffers for glitch detection process
+    private final double[] mFFTResult;
+    private final double[] mCurrentSamples;
+    private final double[] mImagArray;
 
     GlitchDetectionThread(double frequency1, double frequency2, int samplingRate,
           int FFTSamplingSize, int FFTOverlapSamples, int bufferTestDurationInSeconds,
@@ -70,16 +75,21 @@ public class GlitchDetectionThread extends Thread {
 
         mShortBuffer = new short[mFFTSamplingSize];
         mDoubleBuffer = new double[mFFTSamplingSize];
-        mWaveData = new double[mSamplingRate * bufferTestWavePlotDurationInSeconds];
+        mWaveDataRing = new WaveDataRingBuffer(mSamplingRate * bufferTestWavePlotDurationInSeconds);
 
         final int acceptableGlitchingIntervalsPerSecond = 10;
         mGlitches = new int[bufferTestDurationInSeconds * acceptableGlitchingIntervalsPerSecond];
-        Arrays.fill(mGlitches, 0);
         mGlitchesIndex = 0;
-        mFFTCount = 1;
+        mFFTCount = 0;
+
+        mFFTResult = new double[mFFTSamplingSize/2];
+        mCurrentSamples = new double[mFFTSamplingSize];
+        mImagArray = new double[mFFTSamplingSize];
 
         mFFT = new FFT(mFFTSamplingSize);
         computeExpectedCenterOfMass();
+
+        setName("Loopback_GlitchDetection");
 
         mThreadSleepDurationMs = FFTOverlapSamples * Constant.MILLIS_PER_SECOND / mSamplingRate;
         if (mThreadSleepDurationMs < 1) {
@@ -112,22 +122,11 @@ public class GlitchDetectionThread extends Thread {
                 // copy data in mDoubleBuffer to mWaveData
                 if (mIsFirstFFT) {
                     // if it's the first FFT, copy the whole "mNativeBuffer" to mWaveData
-                    System.arraycopy(mDoubleBuffer, 0, mWaveData,
-                                     mWaveDataIndex, mFFTSamplingSize);
-                    mWaveDataIndex += mFFTSamplingSize;
+                    mWaveDataRing.writeWaveData(mDoubleBuffer, 0, mFFTSamplingSize);
                     mIsFirstFFT = false;
                 } else {
-                    // if  mWaveData is all filled, clear it then starting writing from beginning.
-                    //TODO make mWaveData into a circular buffer storing the last N seconds instead
-                    if ((mWaveDataIndex + mNewSamplesPerFFT) >= mWaveData.length) {
-                        Arrays.fill(mWaveData, 0);
-                        mWaveDataIndex = 0;
-                    }
-
-                    // if it's not the first FFT, copy the new data in "mNativeBuffer" to mWaveData
-                    System.arraycopy(mDoubleBuffer, mFFTOverlapSamples, mWaveData,
-                                     mWaveDataIndex, mNewSamplesPerFFT);
-                    mWaveDataIndex += mFFTOverlapSamples;
+                    mWaveDataRing.writeWaveData(mDoubleBuffer, mFFTOverlapSamples,
+                            mNewSamplesPerFFT);
                 }
 
                 detectGlitches();
@@ -171,25 +170,26 @@ public class GlitchDetectionThread extends Thread {
      */
     private void detectGlitches() {
         double centerOfMass;
-        double[] fftResult;
-        double[] currentSamples;
 
-        currentSamples = Arrays.copyOfRange(mDoubleBuffer, 0, mDoubleBuffer.length);
-        currentSamples = Utilities.hanningWindow(currentSamples);
-        double width = (double) mSamplingRate / currentSamples.length;
-        fftResult = computeFFT(currentSamples);     // gives an array of sampleSize / 2
+        // retrieve a copy of recorded wave data for manipulating and analyzing
+        System.arraycopy(mDoubleBuffer, 0, mCurrentSamples, 0, mDoubleBuffer.length);
+
+        Utilities.hanningWindow(mCurrentSamples);
+
+        double width = (double) mSamplingRate / mCurrentSamples.length;
+        computeFFT(mCurrentSamples, mFFTResult);     // gives an array of sampleSize / 2
         final double threshold = 0.1;
 
         // for all elements in the FFT result that are smaller than threshold,
         // eliminate them as they are probably noise
-        for (int j = 0; j < fftResult.length; j++) {
-            if (fftResult[j] < threshold) {
-                fftResult[j] = 0;
+        for (int j = 0; j < mFFTResult.length; j++) {
+            if (mFFTResult[j] < threshold) {
+                mFFTResult[j] = 0;
             }
         }
 
         // calculate the center of mass of sample's FFT
-        centerOfMass = computeCenterOfMass(fftResult, width);
+        centerOfMass = computeCenterOfMass(mFFTResult, width);
         double difference = (Math.abs(centerOfMass - mCenterOfMass) / mCenterOfMass);
         if (mGlitchesIndex >= mGlitches.length) {
             // we just want to show this log once and set the flag once.
@@ -229,19 +229,15 @@ public class GlitchDetectionThread extends Thread {
 
 
     /** Compute FFT of a set of data "samples". */
-    private double[] computeFFT(double[] realArray) {
-        int length = realArray.length;
-        double[] imagArray = new double[length]; // all zeros
-        Arrays.fill(imagArray, 0);
-        mFFT.fft(realArray, imagArray, 1);    // here realArray and imagArray get set
+    private void computeFFT(double[] src, double[] dst) {
+        Arrays.fill(mImagArray, 0);
+        mFFT.fft(src, mImagArray, 1);    // here src array and imagArray get set
 
-        double[] absValue = new double[length / 2];  // don't use second portion of arrays
 
-        for (int i = 0; i < (length / 2); i++) {
-            absValue[i] = Math.sqrt(realArray[i] * realArray[i] + imagArray[i] * imagArray[i]);
+        for (int i = 0; i < (src.length / 2); i++) {
+            dst[i] = Math.sqrt(src[i] * src[i] + mImagArray[i] * mImagArray[i]);
         }
 
-        return absValue;
     }
 
 
@@ -250,13 +246,13 @@ public class GlitchDetectionThread extends Thread {
         SineWaveTone sineWaveTone = new SineWaveTone(mSamplingRate, mFrequency1);
         double[] sineWave = new double[mFFTSamplingSize];
         double centerOfMass;
-        double[] sineFFTResult;
+        double[] sineFFTResult = new double[mFFTSamplingSize/2];
 
         sineWaveTone.generateTone(sineWave, mFFTSamplingSize);
-        sineWave = Utilities.hanningWindow(sineWave);
+        Utilities.hanningWindow(sineWave);
         double width = (double) mSamplingRate / sineWave.length;
 
-        sineFFTResult = computeFFT(sineWave);     // gives an array of sample sizes / 2
+        computeFFT(sineWave, sineFFTResult);     // gives an array of sample sizes / 2
         centerOfMass = computeCenterOfMass(sineFFTResult, width);  // return center of mass
         mCenterOfMass = centerOfMass;
         log("the expected center of mass:" + Double.toString(mCenterOfMass));
@@ -264,7 +260,7 @@ public class GlitchDetectionThread extends Thread {
 
 
     public double[] getWaveData() {
-        return mWaveData;
+        return mWaveDataRing.getWaveRecord();
     }
 
 
@@ -274,7 +270,10 @@ public class GlitchDetectionThread extends Thread {
 
 
     public int[] getGlitches() {
-        return mGlitches;
+        //return a copy of recorded glitches in an array sized to hold only recorded glitches
+        int[] output = new int[mGlitchesIndex];
+        System.arraycopy(mGlitches, 0, output, 0, mGlitchesIndex);
+        return output;
     }
 
 

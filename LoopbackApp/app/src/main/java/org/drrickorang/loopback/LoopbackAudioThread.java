@@ -17,10 +17,12 @@
 package org.drrickorang.loopback;
 
 import android.content.Context;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.util.Log;
 import android.os.Handler;
 import android.os.Message;
@@ -53,14 +55,15 @@ public class LoopbackAudioThread extends Thread {
     private Thread           mRecorderThread;
     private RecorderRunnable mRecorderRunnable;
 
-    private int       mSamplingRate;
-    private int       mChannelConfigIn = AudioFormat.CHANNEL_IN_MONO;
-    private int       mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
+    private final int mSamplingRate;
+    private final int mChannelIndex;
+    private final int mChannelConfigIn = AudioFormat.CHANNEL_IN_MONO;
+    private final int mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
     private int       mMinPlayerBufferSizeInBytes = 0;
     private int       mMinRecorderBuffSizeInBytes = 0;
     private int       mMinPlayerBufferSizeSamples = 0;
-    private int       mMicSource;
-    private int       mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
+    private final int mMicSource;
+    private final int mChannelConfigOut = AudioFormat.CHANNEL_OUT_MONO;
     private boolean   mIsPlaying = false;
     private boolean   mIsRequestStop = false;
     private Handler   mMessageHandler;
@@ -81,7 +84,8 @@ public class LoopbackAudioThread extends Thread {
                                int micSource, BufferPeriod recorderBufferPeriod,
                                BufferPeriod playerBufferPeriod, int testType,
                                int bufferTestDurationInSeconds,
-                               int bufferTestWavePlotDurationInSeconds, Context context) {
+                               int bufferTestWavePlotDurationInSeconds, Context context,
+                               int channelIndex) {
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
@@ -92,6 +96,9 @@ public class LoopbackAudioThread extends Thread {
         mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
         mContext = context;
+        mChannelIndex = channelIndex;
+
+        setName("Loopback_LoopbackAudio");
     }
 
 
@@ -119,26 +126,41 @@ public class LoopbackAudioThread extends Thread {
         short[] bufferTestTone = new short[audioTrackWriteDataSize]; // used by AudioTrack.write()
         ToneGeneration toneGeneration = new SineWaveTone(mSamplingRate, frequency1);
 
+        //todo update recorderRunnable for channel index
         mRecorderRunnable = new RecorderRunnable(mLatencyTestPipe, mSamplingRate, mChannelConfigIn,
                 mAudioFormat, mMinRecorderBuffSizeInBytes, MediaRecorder.AudioSource.MIC, this,
                 mRecorderBufferPeriod, mTestType, frequency1, frequency2,
-                mBufferTestWavePlotDurationInSeconds, mContext);
+                mBufferTestWavePlotDurationInSeconds, mContext, mChannelIndex);
         mRecorderRunnable.setBufferTestDurationInSeconds(mBufferTestDurationInSeconds);
         mRecorderThread = new Thread(mRecorderRunnable);
+        mRecorderThread.setName("Loopback_RecorderRunnable");
 
         // both player and recorder run at max priority
         mRecorderThread.setPriority(Thread.MAX_PRIORITY);
         mRecorderThread.start();
 
-        mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-                mSamplingRate,
-                mChannelConfigOut,
-                mAudioFormat,
-                mMinPlayerBufferSizeInBytes,
-                AudioTrack.MODE_STREAM /* FIXME runtime test for API level 9,
-                mSessionId */);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            mAudioTrack = new AudioTrack.Builder()
+                    .setAudioFormat((mChannelIndex < 0 ?
+                            new AudioFormat.Builder().setChannelMask(AudioFormat.CHANNEL_OUT_MONO) :
+                            new AudioFormat.Builder().setChannelIndexMask(1 << mChannelIndex))
+                            .setSampleRate(mSamplingRate)
+                            .setEncoding(mAudioFormat)
+                            .build())
+                    .setBufferSizeInBytes(mMinPlayerBufferSizeInBytes)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build();
+        } else {
+            mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    mSamplingRate,
+                    mChannelConfigOut,
+                    mAudioFormat,
+                    mMinPlayerBufferSizeInBytes,
+                    AudioTrack.MODE_STREAM /* FIXME runtime test for API level 9,
+                    mSessionId */);
+        }
 
-        if (mRecorderRunnable != null && mAudioTrack != null) {
+        if (mRecorderRunnable != null && mAudioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
             mIsPlaying = false;
             mIsRunning = true;
 
@@ -186,6 +208,8 @@ public class LoopbackAudioThread extends Thread {
 
         } else {
             log("Loopback Audio Thread couldn't run!");
+            mAudioTrack.release();
+            mAudioTrack = null;
             if (mMessageHandler != null) {
                 Message msg = Message.obtain();
                 switch (mTestType) {

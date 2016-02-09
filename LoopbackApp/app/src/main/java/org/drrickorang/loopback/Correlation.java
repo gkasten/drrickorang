@@ -37,6 +37,8 @@ public class Correlation {
 
     private double mAmplitudeThreshold = 0.001;  // 0.001 = -60 dB noise
 
+    private boolean mDataIsValid = false; // Used to mark computed latency information is available
+
 
     public void init(int blockSize, int samplingRate) {
         mBlockSize = blockSize;
@@ -44,8 +46,7 @@ public class Correlation {
     }
 
 
-    public boolean computeCorrelation(double [] data, int samplingRate) {
-        boolean status;
+    public void computeCorrelation(double [] data, int samplingRate) {
         log("Started Auto Correlation for data with " + data.length + " points");
         mSamplingRate = samplingRate;
 
@@ -98,10 +99,18 @@ public class Correlation {
         log(String.format(" latencySamples: %.2f  %.2f ms", mEstimatedLatencySamples,
                           mEstimatedLatencyMs));
 
-        status = true;
-        return status;
+        mDataIsValid = mEstimatedLatencyMs > 0.0001;
     }
 
+    // Called by LoopbackActivity before displaying latency test results
+    public boolean isValid() {
+        return mDataIsValid;
+    }
+
+    // Called at beginning of new test
+    public void invalidate() {
+        mDataIsValid = false;
+    }
 
     private boolean downsampleData(double [] data, double [] dataDownsampled, double threshold) {
 

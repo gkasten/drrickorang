@@ -25,6 +25,7 @@ public class Constant {
     public static final double TWO_PI = 2.0 * Math.PI;
     public static final long   NANOS_PER_MILLI = 1000000;
     public static final int    MILLIS_PER_SECOND = 1000;
+    public static final int    SECONDS_PER_HOUR = 3600;
 
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY = 222;
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD = 223;
@@ -52,4 +53,24 @@ public class Constant {
 
     // used when joining a thread
     public static final int JOIN_WAIT_TIME_MS = 1000;
+
+    // Loopback on Java thread test audio tone constants
+    public static final int LOOPBACK_SAMPLE_FRAMES = 300;
+    public static final double LOOPBACK_AMPLITUDE = 0.95;
+    public static final int LOOPBACK_FREQUENCY = 4000;
+
+    // Settings Activity and ADB constants
+    public static final int SAMPLING_RATE_MAX = 48000;
+    public static final int SAMPLING_RATE_MIN = 8000;
+    public static final int PLAYER_BUFFER_FRAMES_MAX = 8000;
+    public static final int PLAYER_BUFFER_FRAMES_MIN = 16;
+    public static final int RECORDER_BUFFER_FRAMES_MAX = 8000;
+    public static final int RECORDER_BUFFER_FRAMES_MIN = 16;
+    public static final int BUFFER_TEST_DURATION_SECONDS_MAX = 36000;
+    public static final int BUFFER_TEST_DURATION_SECONDS_MIN = 1;
+    public static final int BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MAX = 120;
+    public static final int BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MIN = 1;
+    public static final int MAX_NUM_LOAD_THREADS = 20;
+    public static final int MIN_NUM_LOAD_THREADS = 0;
+
 }

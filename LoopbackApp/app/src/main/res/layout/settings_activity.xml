@@ -72,6 +72,21 @@
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
 
+            <TextView
+                android:id="@+id/textChannelIndex"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelChannelIndex"/>
+            <Spinner
+                android:id="@+id/spinnerChannelIndex"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"/>
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
             <Button
                 xmlns:android="http://schemas.android.com/apk/res/android"
                 android:id="@+id/buttonDefaultSettings"
@@ -96,14 +111,9 @@
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
 
-            <TextView
-                android:id="@+id/textPlayerBuffer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/labelPlayerBuffer"/>
-            <NumberPicker
-                android:id="@+id/numberpickerPlayerBuffer"
-                android:layout_width="wrap_content"
+            <org.drrickorang.loopback.SettingsPicker
+                android:id="@+id/playerBufferSetting"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
 
             <View
@@ -111,50 +121,45 @@
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
 
-            <TextView
-                android:id="@+id/textRecorderBuffer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/labelRecorderBuffer"/>
 
-            <NumberPicker
-                android:id="@+id/numberpickerRecorderBuffer"
-                android:layout_width="wrap_content"
+            <org.drrickorang.loopback.SettingsPicker
+                android:id="@+id/recorderBufferSetting"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
-
 
             <View
                 android:layout_width="fill_parent"
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
 
-            <TextView
-                android:id="@+id/textBufferTestDuration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/labelBufferTestDuration"/>
 
-            <NumberPicker
-                android:id="@+id/numberpickerBufferTestDuration"
-                android:layout_width="wrap_content"
+            <org.drrickorang.loopback.SettingsPicker
+                android:id="@+id/bufferTestDurationSetting"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
-
 
             <View
                 android:layout_width="fill_parent"
                 android:layout_height="1dp"
                 android:background="@android:color/darker_gray"/>
 
-            <TextView
-                android:id="@+id/textBufferTestWavePlotDuration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/labelBufferTestWavePlotDuration"/>
 
-            <NumberPicker
-                android:id="@+id/numberPickerBufferTestWavePlotDuration"
-                android:layout_width="wrap_content"
+            <org.drrickorang.loopback.SettingsPicker
+                android:id="@+id/wavePlotDurationSetting"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray" />
+
+
+            <org.drrickorang.loopback.SettingsPicker
+                android:id="@+id/numLoadThreadsSetting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="100dp"/>
 
         </LinearLayout>
     </ScrollView>

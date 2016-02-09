@@ -35,15 +35,15 @@ public class NativeAudioThread extends Thread {
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED = 891;
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_ERROR = 892;
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE = 893;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE_ERRORS = 894;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STOP = 895;
 
     // for buffer test
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STARTED = 896;
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_ERROR = 897;
     static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE = 898;
-
-    // used by both latency test and buffer test
-    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS = 894;
-    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_STOP = 900;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE_ERRORS = 899;
+    static final int LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP = 900;
 
     public boolean  mIsRunning = false;
     public int      mSessionId;
@@ -89,6 +89,8 @@ public class NativeAudioThread extends Thread {
         mTestType = testType;
         mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
+
+        setName("Loopback_NativeAudio");
     }
 
 
@@ -106,7 +108,8 @@ public class NativeAudioThread extends Thread {
 
     //jni calls
     public native long  slesInit(int samplingRate, int frameCount, int micSource,
-                                 int testType, double frequency1, ByteBuffer byteBuffer);
+                                 int testType, double frequency1, ByteBuffer byteBuffer,
+                                 short[] sincTone);
     public native int   slesProcessNext(long sles_data, double[] samples, long offset);
     public native int   slesDestroy(long sles_data);
 
@@ -140,6 +143,14 @@ public class NativeAudioThread extends Thread {
             mMessageHandler.sendMessage(msg);
         }
 
+        //generate sinc tone use for loopback test
+        short loopbackTone[] = new short[mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME];
+        if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY) {
+            ToneGeneration sincToneGen = new RampedSineTone(mSamplingRate,
+                    Constant.LOOPBACK_FREQUENCY);
+            sincToneGen.generateTone(loopbackTone, loopbackTone.length);
+        }
+
         log(String.format("about to init, sampling rate: %d, buffer:%d", mSamplingRate,
                 mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME));
 
@@ -148,7 +159,7 @@ public class NativeAudioThread extends Thread {
         long startTimeMs = System.currentTimeMillis();
         long sles_data = slesInit(mSamplingRate, mMinPlayerBufferSizeInBytes /
                                   Constant.BYTES_PER_FRAME, mMicSource, mTestType, mFrequency1,
-                                  mPipeByteBuffer.getByteBuffer());
+                                  mPipeByteBuffer.getByteBuffer(), loopbackTone);
         log(String.format("sles_data = 0x%X", sles_data));
 
         if (sles_data == 0) {
@@ -353,9 +364,23 @@ public class NativeAudioThread extends Thread {
        if (mMessageHandler != null) {
            Message msg = Message.obtain();
            if (hasDestroyingErrors) {
-               msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_COMPLETE_ERRORS;
+               switch (mTestType) {
+                   case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                       msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE_ERRORS;
+                       break;
+                   case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                       msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE_ERRORS;
+                       break;
+               }
            } else if (mIsRequestStop) {
-               msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_REC_STOP;
+               switch (mTestType) {
+                   case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
+                       msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STOP;
+                       break;
+                   case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
+                       msg.what = LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP;
+                       break;
+               }
            } else {
                switch (mTestType) {
                case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:

@@ -20,8 +20,8 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.os.Build;
 import android.util.Log;
-
 
 /**
  * This thread records incoming sound samples (uses AudioRecord).
@@ -45,6 +45,7 @@ public class RecorderRunnable implements Runnable {
     private final int mTestType;    // latency test or buffer test
     private final int mSelectedRecordSource;
     private final int mSamplingRate;
+
     private int       mChannelConfig = AudioFormat.CHANNEL_IN_MONO;
     private int       mAudioFormat = AudioFormat.ENCODING_PCM_16BIT;
     private int       mMinRecorderBuffSizeInBytes = 0;
@@ -57,6 +58,7 @@ public class RecorderRunnable implements Runnable {
     // for glitch detection (buffer test)
     private BufferPeriod          mRecorderBufferPeriodInRecorder;
     private final int             mBufferTestWavePlotDurationInSeconds;
+    private final int             mChannelIndex;
     private final double          mFrequency1;
     private final double          mFrequency2; // not actually used
     private int[]                 mAllGlitches; // value = 1 means there's a glitch in that interval
@@ -87,7 +89,7 @@ public class RecorderRunnable implements Runnable {
                      int recorderBufferInBytes, int micSource, LoopbackAudioThread audioThread,
                      BufferPeriod recorderBufferPeriod, int testType, double frequency1,
                      double frequency2, int bufferTestWavePlotDurationInSeconds,
-                     Context context) {
+                     Context context, int channelIndex) {
         mLatencyTestPipeShort = latencyPipe;
         mSamplingRate = samplingRate;
         mChannelConfig = channelConfig;
@@ -101,6 +103,7 @@ public class RecorderRunnable implements Runnable {
         mFrequency2 = frequency2;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
         mContext = context;
+        mChannelIndex = channelIndex;
     }
 
 
@@ -125,20 +128,40 @@ public class RecorderRunnable implements Runnable {
         mAudioShortArray = new short[mMinRecorderBuffSizeInSamples];
 
         try {
-            mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
-                    mChannelConfig, mAudioFormat, 2 * mMinRecorderBuffSizeInBytes);
-        } catch (IllegalArgumentException e) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mRecorder = new AudioRecord.Builder()
+                        .setAudioFormat((mChannelIndex < 0 ?
+                                new AudioFormat.Builder()
+                                        .setChannelMask(AudioFormat.CHANNEL_IN_MONO) :
+                                new AudioFormat
+                                        .Builder().setChannelIndexMask(1 << mChannelIndex))
+                                .setSampleRate(mSamplingRate)
+                                .setEncoding(mAudioFormat)
+                                .build())
+                        .setAudioSource(mSelectedRecordSource)
+                        .setBufferSizeInBytes(2 * mMinRecorderBuffSizeInBytes)
+                        .build();
+            } else {
+                mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
+                        mChannelConfig, mAudioFormat, 2 * mMinRecorderBuffSizeInBytes);
+            }
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
             e.printStackTrace();
             return false;
+        } finally {
+            if (mRecorder == null){
+                return false;
+            } else if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                mRecorder.release();
+                mRecorder = null;
+                return false;
+            }
         }
 
-        if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
-            mRecorder.release();
-            mRecorder = null;
-            return false;
-        }
-
-        createAudioTone(300, 1000, true);
+        //generate sinc wave for use in loopback test
+        ToneGeneration sincTone = new RampedSineTone(mSamplingRate, Constant.LOOPBACK_FREQUENCY);
+        mAudioTone = new short[Constant.LOOPBACK_SAMPLE_FRAMES];
+        sincTone.generateTone(mAudioTone, Constant.LOOPBACK_SAMPLE_FRAMES);
 
         return true;
     }
@@ -172,16 +195,34 @@ public class RecorderRunnable implements Runnable {
         mMaxVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 
         try {
-            mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
-                    mChannelConfig, mAudioFormat, 2 * mMinRecorderBuffSizeInBytes);
-        } catch (IllegalArgumentException e) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mRecorder = new AudioRecord.Builder()
+                        .setAudioFormat((mChannelIndex < 0 ?
+                                new AudioFormat.Builder()
+                                        .setChannelMask(AudioFormat.CHANNEL_IN_MONO) :
+                                new AudioFormat
+                                        .Builder().setChannelIndexMask(1 << mChannelIndex))
+                                .setSampleRate(mSamplingRate)
+                                .setEncoding(mAudioFormat)
+                                .build())
+                        .setAudioSource(mSelectedRecordSource)
+                        .setBufferSizeInBytes(2 * mMinRecorderBuffSizeInBytes)
+                        .build();
+            } else {
+                mRecorder = new AudioRecord(mSelectedRecordSource, mSamplingRate,
+                        mChannelConfig, mAudioFormat, 2 * mMinRecorderBuffSizeInBytes);
+            }
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
             e.printStackTrace();
             return false;
-        }
-        if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
-            mRecorder.release();
-            mRecorder = null;
-            return false;
+        } finally {
+            if (mRecorder == null){
+                return false;
+            } else if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                mRecorder.release();
+                mRecorder = null;
+                return false;
+            }
         }
 
         final int targetFFTMs = 20; // we want each FFT to cover 20ms of samples
@@ -474,35 +515,6 @@ public class RecorderRunnable implements Runnable {
         }
 
         return result;
-    }
-
-
-    /**
-     * this function creates the tone that will be injected (and then loopback) in the Latency test.
-     * It's a sine wave whose magnitude increases than decreases
-     */
-    //TODO make this a subclass of ToneGeneration
-    private void createAudioTone(int sampleSize, int frequency, boolean taperEnds) {
-        mAudioTone = new short[sampleSize];
-        double phase = 0;
-
-        for (int i = 0; i < sampleSize; i++) {
-            double factor = 1.0;    // decide the magnitude of the sine wave
-            if (taperEnds) {
-                if (i < sampleSize / 2) {
-                    factor = 2.0 * i / sampleSize;
-                } else {
-                    factor = 2.0 * (sampleSize - i) / sampleSize;
-                }
-            }
-
-            short value = (short) (factor * Math.sin(phase) * 10000);
-            mAudioTone[i] = value;
-            phase += Constant.TWO_PI * frequency / mSamplingRate;
-        }
-
-        while (phase > Constant.TWO_PI)
-            phase -= Constant.TWO_PI;
     }
 
 

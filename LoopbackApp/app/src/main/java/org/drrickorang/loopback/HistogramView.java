@@ -84,10 +84,13 @@ public class HistogramView extends View {
         mLinePaint.setStrokeWidth(mLineWidth);
     }
 
-
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        fillCanvas(canvas, this.getRight(), this.getBottom());
+    }
+
+    public void fillCanvas(Canvas canvas, int right, int bottom){
         canvas.drawColor(Color.GRAY);
 
         if (mData == null || mData.length == 0) {
@@ -193,11 +196,6 @@ public class HistogramView extends View {
                 mDisplayData = mData;
                 mDisplayTimeStampData = mTimeStampData;
             }
-
-
-            // coordinate starts at (0, 0), up to (right, bottom)
-            int right = this.getRight();
-            int bottom = this.getBottom();
 
             // calculate the max frequency among all latencies
             int maxBufferPeriodFreq = 0;

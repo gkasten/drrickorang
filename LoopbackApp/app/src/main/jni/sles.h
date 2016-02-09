@@ -18,7 +18,7 @@
 #include <SLES/OpenSLES_Android.h>
 #include <pthread.h>
 #include <android/log.h>
-
+#include <jni.h>
 
 #ifndef _Included_org_drrickorang_loopback_sles
 #define _Included_org_drrickorang_loopback_sles
@@ -94,6 +94,8 @@ typedef struct {
     int count;
     char* byteBufferPtr;
     int byteBufferLength;
+
+    short* loopbackTone;
 } sles_data;
 
 enum {
@@ -108,7 +110,8 @@ enum {
 } SLES_STATUS_ENUM;
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
-             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength);
+             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
+             short* loopbackTone);
 
 //note the double pointer to properly free the memory of the structure
 int slesDestroy(sles_data ** ppSles);
@@ -118,7 +121,8 @@ int slesDestroy(sles_data ** ppSles);
 int slesFull(sles_data *pSles);
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
-                     int testType, double frequency1, char* byteBufferPtr, int byteBufferLength);
+                     int testType, double frequency1, char* qbyteBufferPtr, int byteBufferLength,
+                     short* loopbackTone);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
 int slesDestroyServer(sles_data *pSles);
 int* slesGetRecorderBufferPeriod(sles_data *pSles);

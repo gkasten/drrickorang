@@ -27,7 +27,6 @@ public class TwoSineWavesTone extends ToneGeneration {
     private int          mCount; // counts the total samples produced.
     private double       mPhase1; // current phase associated with mFrequency1
     private double       mPhase2; // current phase associated with mFrequency2
-    private double       mAmplitude; // this value should be from 0 to 1.0
     private final double mPhaseIncrement1; // phase incrementation associated with mFrequency1
     private final double mPhaseIncrement2; // phase incrementation associated with mFrequency2
 

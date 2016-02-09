@@ -88,7 +88,8 @@ public class PerformanceMeasurement {
         log("percent difference between two means: " + (Math.abs(meanAfterDiscard - mean) / mean));
 
         // determine if there's a buffer sizes mismatch
-        boolean isBufferSizesMismatch = determineIsBufferSizesMatch();
+        boolean isBufferSizesMismatch =
+                percentBufferPeriodsAtExpected() > mPercentOccurrenceThreshold;
 
         // compute benchmark and count the number of outliers
         double benchmark = computeWeightedBenchmark();
@@ -105,27 +106,21 @@ public class PerformanceMeasurement {
 
 
     /**
-     * Determine whether or not there is a buffer sizes mismatch by summing the counts around
-     * mExpectedBufferPeriod. If the percent of this count over the total count is larger than
-     * mPercentOccurrenceThreshold, then there is no mismatch. Else, there is mismatch.
-     * Note: This method may not work in every case, but should work in most cases.
+     * Determine percent of Buffer Period Callbacks that occurred at the expected time
+     * Note: due to current rounding in buffer sampling callbacks occurring at 1 ms after the
+     * expected buffer period are also counted in the returned percentage
+     * Returns a value between 0 and 1
      */
-    public boolean determineIsBufferSizesMatch() {
+    public float percentBufferPeriodsAtExpected() {
         int occurrenceNearExpectedBufferPeriod = 0;
         // indicate how many beams around mExpectedBufferPeriod do we want to add to the count
         int numberOfBeams = 2;
         int start = Math.max(0, mExpectedBufferPeriodMs - numberOfBeams);
-        int end = Math.min(mBufferData.length, mExpectedBufferPeriodMs + numberOfBeams + 1);
+        int end = Math.min(mBufferData.length, mExpectedBufferPeriodMs + numberOfBeams);
         for (int i = start; i < end; i++) {
             occurrenceNearExpectedBufferPeriod += mBufferData[i];
         }
-        double percentOccurrence = ((double) occurrenceNearExpectedBufferPeriod) / mTotalOccurrence;
-        log("percent occurrence near center: " + percentOccurrence);
-        if (percentOccurrence > mPercentOccurrenceThreshold) {
-            return false;
-        } else {
-            return true;
-        }
+        return ((float) occurrenceNearExpectedBufferPeriod) / mTotalOccurrence;
     }
 
 

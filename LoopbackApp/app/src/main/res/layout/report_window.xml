@@ -21,13 +21,14 @@
     android:background="#FFFFFF">
 
     <ScrollView
-        android:id="@+id/GlitchesScroll"
+        android:id="@+id/ReportScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:scrollbars="vertical"
+        android:fadeScrollbars="false"
         android:fillViewport="true">
         <TextView
-            android:id="@+id/GlitchesInfo"
+            android:id="@+id/ReportInfo"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:textSize="15sp" />
