@@ -18,18 +18,16 @@ package org.drrickorang.loopback;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.KeyEvent;
-import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
 public class SettingsPicker extends LinearLayout implements SeekBar.OnSeekBarChangeListener,
-        TextView.OnEditorActionListener {
+        CatchEventsEditText.EditTextEventListener {
 
     protected TextView mTitleTextView;
-    protected EditText mValueEditText;
+    protected CatchEventsEditText mValueEditText;
     protected SeekBar mValueSeekBar;
     protected SettingChangeListener mSettingsChangeListener;
 
@@ -45,11 +43,11 @@ public class SettingsPicker extends LinearLayout implements SeekBar.OnSeekBarCha
 
         inflate(context, R.layout.settings_picker, this);
 
-        mTitleTextView = (TextView) findViewWithTag("title");
-        mValueEditText = (EditText) findViewWithTag("valueText");
-        mValueSeekBar = (SeekBar) findViewWithTag("seekbar");
+        mTitleTextView = (TextView) findViewById(R.id.settings_title);
+        mValueEditText = (CatchEventsEditText) findViewById(R.id.settings_valueText);
+        mValueSeekBar = (SeekBar) findViewById(R.id.settings_seekbar);
 
-        mValueEditText.setOnEditorActionListener(this);
+        mValueEditText.setEditTextEvenListener(this);
         mValueSeekBar.setOnSeekBarChangeListener(this);
     }
 
@@ -88,31 +86,26 @@ public class SettingsPicker extends LinearLayout implements SeekBar.OnSeekBarCha
     }
 
     @Override
-    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-        if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER))
-                || (actionId == EditorInfo.IME_ACTION_DONE)) {
-            if (!v.getText().toString().isEmpty()) {
-                int value;
-                try {
-                    value = Integer.parseInt(v.getText().toString());
-                } catch (NumberFormatException e) {
-                    value = mMinimumValue;
-                    v.setText(Integer.toString(value));
-                }
-                if (value < mMinimumValue) {
-                    value = mMinimumValue;
-                    v.setText(Integer.toString(value));
-                } else if (value > mMaximumValue) {
-                    value = mMaximumValue;
-                    v.setText(Integer.toString(value));
-                }
-                textChanged(value);
-            } else {
-                sliderChanged(mMinimumValue + mValueSeekBar.getProgress(), false);
+    public void textEdited(EditText v) {
+        if (!v.getText().toString().isEmpty()) {
+            int value;
+            try {
+                value = Integer.parseInt(v.getText().toString());
+            } catch (NumberFormatException e) {
+                value = mMinimumValue;
+                v.setText(Integer.toString(value));
             }
-            return true;
+            if (value < mMinimumValue) {
+                value = mMinimumValue;
+                v.setText(Integer.toString(value));
+            } else if (value > mMaximumValue) {
+                value = mMaximumValue;
+                v.setText(Integer.toString(value));
+            }
+            textChanged(value);
+        } else {
+            sliderChanged(mMinimumValue + mValueSeekBar.getProgress(), false);
         }
-        return false;
     }
 
     @Override

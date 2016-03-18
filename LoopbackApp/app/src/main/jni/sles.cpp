@@ -30,17 +30,19 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-             short* loopbackTone) {
+             short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
+             const struct JNIInvokeInterface* *jvm) {
     int status = SLES_FAIL;
     if (ppSles != NULL) {
         sles_data * pSles = (sles_data*) malloc(sizeof(sles_data));
 
         memset(pSles, 0, sizeof(sles_data));
 
-         SLES_PRINTF("malloc %d bytes at %p", sizeof(sles_data), pSles);
+         SLES_PRINTF("malloc %zu bytes at %p", sizeof(sles_data), pSles);
         //__android_log_print(ANDROID_LOG_INFO, "sles_jni",
         //"malloc %d bytes at %p", sizeof(sles_data), pSles);//Or ANDROID_LOG_INFO, ...
         *ppSles = pSles;
@@ -49,7 +51,8 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSourc
             SLES_PRINTF("creating server. Sampling rate =%d, frame count = %d",
                         samplingRate, frameCount);
             status = slesCreateServer(pSles, samplingRate, frameCount, micSource, testType,
-                                      frequency1, byteBufferPtr, byteBufferLength, loopbackTone);
+                                      frequency1, byteBufferPtr, byteBufferLength, loopbackTone,
+                                      maxRecordedLateCallbacks, captureHolder, jvm);
             SLES_PRINTF("slesCreateServer =%d", status);
         }
     }
@@ -193,25 +196,67 @@ ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count) {
     return count;
 }
 
+// Calculate millisecond difference between two timespec structs from clock_gettime(CLOCK_MONOTONIC)
+// tv_sec [0, max time_t] , tv_nsec [0, 999999999]
+int diffInMilli(struct timespec previousTime, struct timespec currentTime) {
+    int diff_in_second = currentTime.tv_sec - previousTime.tv_sec;
+    long diff_in_nano = currentTime.tv_nsec - previousTime.tv_nsec;
+
+    // diff_in_milli is rounded up
+    uint64_t total_diff_in_nano = (diff_in_second * (uint64_t) NANOS_PER_SECOND) + diff_in_nano;
+    int diff_in_milli = (int) ((total_diff_in_nano + NANOS_PER_MILLI - 1) / NANOS_PER_MILLI);
+
+    return diff_in_milli;
+}
+
+
+// Request CaptureHolder object to capture a systrace/bugreport and/or wav snippet
+// Uses cached JavaVM and Jobject to call a method on instantiated CaptureHolder object
+void captureState(sles_data *pSles, int rank) {
+    // Retrieve JNIEnv from cached JavaVM
+    if (pSles->jvm == NULL) {
+        __android_log_print(ANDROID_LOG_DEBUG, "CAPTURE", "Java Virtual Machine unavailable");
+        return;
+    }
+    C_JNIEnv *env;
+    jint result = (*(pSles->jvm))->AttachCurrentThread((JavaVM *) pSles->jvm, (JNIEnv **) &env,
+                                                       NULL);
+    if (result == JNI_OK && env != NULL) {
+
+        // Get object class and method via reflection
+        jclass captureHolderClass = (*env)->GetObjectClass((JNIEnv *) env, pSles->captureHolder);
+        jmethodID javaCaptureMethod =
+                (*env)->GetMethodID((JNIEnv *) env, captureHolderClass, "captureState", "(I)I");
+
+        // Call CaptureHolder.captureState instance method
+        int captureResult = (*env)->CallIntMethod((JNIEnv *) env, pSles->captureHolder,
+                                                  javaCaptureMethod, rank);
+        __android_log_print(ANDROID_LOG_DEBUG, "CAPTURE",
+                            "instigated state capture from native SLES result: %d",captureResult);
+
+        // Release local ref and attached thread
+        (*env)->DeleteLocalRef((JNIEnv *) env, captureHolderClass);
+        (*(pSles->jvm))->DetachCurrentThread((JavaVM *) pSles->jvm);
+    } else {
+        __android_log_print(ANDROID_LOG_DEBUG, "CAPTURE", "state capture from native SLES failed");
+    }
+}
 
 // Called in the beginning of recorderCallback() to collect the interval between each
 // recorderCallback().
 void collectRecorderBufferPeriod(sles_data *pSles) {
-    struct timespec recorder_time;
-    clock_gettime(CLOCK_MONOTONIC, &recorder_time);
+    clock_gettime(CLOCK_MONOTONIC, &(pSles->recorder_current_time));
 
-    pSles->recorder_current_time_sec = recorder_time.tv_sec;
-    pSles->recorder_current_time_nsec = recorder_time.tv_nsec;
+    if (pSles->recorder_buffer_count == 0){
+        pSles->recorderTimeStamps.startTime = pSles->recorder_current_time;
+    }
+
     (pSles->recorder_buffer_count)++;
 
-    if (pSles->recorder_previous_time_sec != 0 &&
+    if (pSles->recorder_previous_time.tv_sec != 0 &&
         pSles->recorder_buffer_count > BUFFER_PERIOD_DISCARD){
-        int diff_in_second = pSles->recorder_current_time_sec - pSles->recorder_previous_time_sec;
-        long diff_in_nano = pSles->recorder_current_time_nsec - pSles->recorder_previous_time_nsec;
-
-        // diff_in_milli is rounded up
-        long long total_diff_in_nano = (diff_in_second * NANOS_PER_SECOND) + diff_in_nano;
-        int diff_in_milli = (int) ((total_diff_in_nano + NANOS_PER_MILLI - 1) / NANOS_PER_MILLI);
+        int diff_in_milli = diffInMilli(pSles->recorder_previous_time,
+                                        pSles->recorder_current_time);
 
         if (diff_in_milli > pSles->recorder_max_buffer_period) {
             pSles->recorder_max_buffer_period = diff_in_milli;
@@ -225,10 +270,26 @@ void collectRecorderBufferPeriod(sles_data *pSles) {
         } else { // for diff_in_milli < 0
             __android_log_print(ANDROID_LOG_INFO, "sles_recorder", "Having negative BufferPeriod.");
         }
+
+        //recording timestamps of buffer periods not at expected buffer period
+        if (!pSles->recorderTimeStamps.exceededCapacity
+            && diff_in_milli != pSles->expectedBufferPeriod
+            && diff_in_milli != pSles->expectedBufferPeriod+1) {
+            //only marked as exceeded if attempting to record a late callback after arrays full
+            if (pSles->recorderTimeStamps.index == pSles->recorderTimeStamps.capacity){
+                pSles->recorderTimeStamps.exceededCapacity = true;
+            } else {
+                pSles->recorderTimeStamps.callbackDurations[pSles->recorderTimeStamps.index] =
+                        (short) diff_in_milli;
+                pSles->recorderTimeStamps.timeStampsMs[pSles->recorderTimeStamps.index] =
+                        diffInMilli(pSles->recorderTimeStamps.startTime,
+                                    pSles->recorder_current_time);
+                pSles->recorderTimeStamps.index++;
+            }
+        }
     }
 
-    pSles->recorder_previous_time_sec = pSles->recorder_current_time_sec;
-    pSles->recorder_previous_time_nsec = pSles->recorder_current_time_nsec;
+    pSles->recorder_previous_time = pSles->recorder_current_time;
 }
 
 
@@ -333,21 +394,18 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
 // Called in the beginning of playerCallback() to collect the interval between each
 // playerCallback().
 void collectPlayerBufferPeriod(sles_data *pSles) {
-    struct timespec player_time;
-    clock_gettime(CLOCK_MONOTONIC, &player_time);
+    clock_gettime(CLOCK_MONOTONIC, &(pSles->player_current_time));
 
-    pSles->player_current_time_sec = player_time.tv_sec;
-    pSles->player_current_time_nsec = player_time.tv_nsec;
+    if (pSles->player_buffer_count == 0) {
+        pSles->playerTimeStamps.startTime = pSles->player_current_time;
+    }
+
     (pSles->player_buffer_count)++;
 
-    if (pSles->player_previous_time_sec != 0 &&
+    if (pSles->player_previous_time.tv_sec != 0 &&
         pSles->player_buffer_count > BUFFER_PERIOD_DISCARD) {
-        int diff_in_second = pSles->player_current_time_sec - pSles->player_previous_time_sec;
-        long diff_in_nano = pSles->player_current_time_nsec - pSles->player_previous_time_nsec;
 
-        // diff_in_milli is rounded up
-        long long total_diff_in_nano = (diff_in_second * NANOS_PER_SECOND) + diff_in_nano;
-        int diff_in_milli = (int) ((total_diff_in_nano + NANOS_PER_MILLI - 1) / NANOS_PER_MILLI);
+        int diff_in_milli = diffInMilli(pSles->player_previous_time, pSles->player_current_time);
 
         if (diff_in_milli > pSles->player_max_buffer_period) {
             pSles->player_max_buffer_period = diff_in_milli;
@@ -361,16 +419,32 @@ void collectPlayerBufferPeriod(sles_data *pSles) {
         } else { // for diff_in_milli < 0
             __android_log_print(ANDROID_LOG_INFO, "sles_player", "Having negative BufferPeriod.");
         }
+
+        //recording timestamps of buffer periods not at expected buffer period
+        if (!pSles->playerTimeStamps.exceededCapacity
+            && diff_in_milli != pSles->expectedBufferPeriod
+            && diff_in_milli != pSles->expectedBufferPeriod+1) {
+            //only marked as exceeded if attempting to record a late callback after arrays full
+            if (pSles->playerTimeStamps.index == pSles->playerTimeStamps.capacity){
+                pSles->playerTimeStamps.exceededCapacity = true;
+            } else {
+                pSles->playerTimeStamps.callbackDurations[pSles->playerTimeStamps.index] =
+                        (short) diff_in_milli;
+                pSles->playerTimeStamps.timeStampsMs[pSles->playerTimeStamps.index] =
+                        diffInMilli( pSles->playerTimeStamps.startTime, pSles->player_current_time);
+                pSles->playerTimeStamps.index++;
+            }
+        }
     }
 
-    pSles->player_previous_time_sec = pSles->player_current_time_sec;
-    pSles->player_previous_time_nsec = pSles->player_current_time_nsec;
+    pSles->player_previous_time = pSles->player_current_time;
 }
 
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
                      int testType, double frequency1, char *byteBufferPtr, int byteBufferLength,
-                     short *loopbackTone) {
+                     short *loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
+                     const struct JNIInvokeInterface* *jvm) {
     int status = SLES_FAIL;
 
     if (pSles != NULL) {
@@ -495,19 +569,15 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         //init recorder buffer period data
         pSles->recorder_buffer_period = new int[RANGE](); // initialized to zeros
-        pSles->recorder_previous_time_sec = 0;
-        pSles->recorder_previous_time_nsec = 0;
-        pSles->recorder_current_time_sec = 0;
-        pSles->recorder_current_time_nsec = 0;
+        pSles->recorder_previous_time = {0,0};
+        pSles->recorder_current_time = {0,0};
         pSles->recorder_buffer_count = 0;
         pSles->recorder_max_buffer_period = 0;
 
         //init player buffer period data
         pSles->player_buffer_period = new int[RANGE](); // initialized to zeros
-        pSles->player_previous_time_sec = 0;
-        pSles->player_previous_time_nsec = 0;
-        pSles->player_current_time_sec = 0;
-        pSles->player_current_time_nsec = 0;
+        pSles->player_previous_time = {0,0};
+        pSles->player_current_time = {0,0};
         pSles->player_buffer_count = 0;
         pSles->player_max_buffer_period = 0;
 
@@ -521,6 +591,30 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         //init loopback tone
         pSles->loopbackTone = loopbackTone;
+
+        pSles->recorderTimeStamps = {
+            new int[maxRecordedLateCallbacks],      //int* timeStampsMs
+            new short[maxRecordedLateCallbacks],    //short* callbackDurations
+            0,                                      //short index
+            {0,0},                                  //struct timespec startTime;
+            maxRecordedLateCallbacks,               //int capacity
+            false                                   //bool exceededCapacity
+        };
+
+        pSles->playerTimeStamps = {
+            new int[maxRecordedLateCallbacks],      //int* timeStampsMs
+            new short[maxRecordedLateCallbacks],    //short* callbackDurations;
+            0,                                      //short index
+            {0,0},                                  //struct timespec startTime;
+            maxRecordedLateCallbacks,               //int capacity
+            false                                   //bool exceededCapacity
+        };
+
+        pSles->expectedBufferPeriod = (short) (
+                round(pSles->bufSizeInFrames * MILLIS_PER_SECOND / (float) pSles->sampleRate));
+
+        pSles->captureHolder = captureHolder;
+        pSles->jvm = jvm;
 
         SLresult result;
 
@@ -735,7 +829,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
     //int status = SLES_FAIL;
 
-    SLES_PRINTF("slesProcessNext: pSles = %p, currentSample: %p,  maxSamples = %d",
+    SLES_PRINTF("slesProcessNext: pSles = %p, currentSample: %p,  maxSamples = %ld",
                 pSles, pSamples, maxSamples);
 
     int samplesRead = 0;
@@ -788,7 +882,7 @@ int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
                   &recorderBQState);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
 
-        SLES_PRINTF("End of slesProcessNext: pSles = %p, samplesRead = %d, maxSamples = %d",
+        SLES_PRINTF("End of slesProcessNext: pSles = %p, samplesRead = %d, maxSamples = %ld",
                     pSles, samplesRead, maxSamples);
     }
     return samplesRead;

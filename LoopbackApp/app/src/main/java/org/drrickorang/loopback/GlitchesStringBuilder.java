@@ -83,6 +83,23 @@ public class GlitchesStringBuilder {
         return listOfGlitches.toString();
     }
 
+    /** Generate array of Glitch Times in ms */
+    public static int[] getGlitchMilliseconds(int fftSamplingSize, int FFTOverlapSamples,
+                                                int[] glitchesData, int samplingRate) {
+        int[] glitchMilliseconds = new int[glitchesData.length];
+        int newSamplesPerFFT = fftSamplingSize - FFTOverlapSamples;
+
+        // the time span of new samples for a single FFT in ms
+        double newSamplesInMs = ((double) newSamplesPerFFT / samplingRate) *
+                Constant.MILLIS_PER_SECOND;
+
+        for (int i = 0; i < glitchesData.length; i++) {
+            glitchMilliseconds[i] = (int) (glitchesData[i] * newSamplesInMs); // round down
+        }
+
+        return glitchMilliseconds;
+    }
+
     private static void log(String msg) {
         Log.v(TAG, msg);
     }

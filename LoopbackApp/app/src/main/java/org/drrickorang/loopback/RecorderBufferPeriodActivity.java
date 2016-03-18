@@ -41,24 +41,10 @@ public class RecorderBufferPeriodActivity extends Activity {
         Bundle bundle = getIntent().getExtras();
 
         // setup the histogram
-        int[] bufferTimeStampData = bundle.getIntArray("recorderBufferPeriodTimeStampArray");
         int[] bufferData = bundle.getIntArray("recorderBufferPeriodArray");
         int bufferDataMax = bundle.getInt("recorderBufferPeriodMax");
-        histogramView.setBufferPeriodTimeStampArray(bufferTimeStampData);
         histogramView.setBufferPeriodArray(bufferData);
         histogramView.setMaxBufferPeriod(bufferDataMax);
-
-        // do performance measurement if the there are buffer period data
-        if (bufferData != null) {
-            // this is the range of data that actually has values
-            int usefulDataRange = Math.min(bufferDataMax + 1, bufferData.length);
-            int[] usefulBufferData = Arrays.copyOfRange(bufferData, 0, usefulDataRange);
-            int recorderBufferSize = bundle.getInt("recorderBufferSize");
-            int samplingRate = bundle.getInt("samplingRate");
-            PerformanceMeasurement measurement = new PerformanceMeasurement(recorderBufferSize,
-                                                 samplingRate, usefulBufferData);
-            measurement.measurePerformance();
-        }
 
     }
 

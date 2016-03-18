@@ -39,8 +39,8 @@ public class BufferPeriod {
     private final int range = 1002; // store counts for 0ms to 1000ms, and for > 1000ms
 
     private int[] mBufferPeriod = new int[range];
-    private int[] mBufferPeriodTimeStamp = new int[range];
-
+    private BufferCallbackTimes mCallbackTimes;
+    private CaptureHolder mCaptureHolder;
 
     /**
      * For player, this function is called before every AudioTrack.write().
@@ -73,14 +73,16 @@ public class BufferPeriod {
             // from 0 ms to 1000 ms, plus a sum of all occurrences > 1000ms
             if (diffInMilli >= (range - 1)) {
                 mBufferPeriod[range - 1]++;
-                mBufferPeriodTimeStamp[range - 1] = timeStampInMilli;
             } else if (diffInMilli >= 0) {
                 mBufferPeriod[diffInMilli]++;
-                mBufferPeriodTimeStamp[diffInMilli] = timeStampInMilli;
             } else { // for diffInMilli < 0
                 log("Having negative BufferPeriod.");
             }
 
+            mCallbackTimes.recordCallbackTime(timeStampInMilli, (short) diffInMilli);
+
+            // If diagnosing specific Java thread callback behavior set a conditional here and use
+            // mCaptureHolder.captureState(rank); to capture systraces and bugreport and/or wav file
         }
 
         mPreviousTimeNs = mCurrentTimeNs;
@@ -91,27 +93,29 @@ public class BufferPeriod {
     public void resetRecord() {
         mPreviousTimeNs = 0;
         mCurrentTimeNs = 0;
-        Arrays.fill(mBufferPeriodTimeStamp, 0);
         Arrays.fill(mBufferPeriod, 0);
         mMaxBufferPeriod = 0;
         mCount = 0;
+        mCallbackTimes = null;
     }
 
+    public void prepareMemberObjects(int maxRecords, int expectedBufferPeriod,
+                                     CaptureHolder captureHolder){
+        mCallbackTimes = new BufferCallbackTimes(maxRecords, expectedBufferPeriod);
+        mCaptureHolder = captureHolder;
+    }
 
     public int[] getBufferPeriodArray() {
         return mBufferPeriod;
     }
 
-
-    public int[] getBufferPeriodTimeStampArray() {
-        return mBufferPeriodTimeStamp;
-    }
-
-
     public int getMaxBufferPeriod() {
         return mMaxBufferPeriod;
     }
 
+    public BufferCallbackTimes getCallbackTimes(){
+        return mCallbackTimes;
+    }
 
     private static void log(String msg) {
         Log.v(TAG, msg);

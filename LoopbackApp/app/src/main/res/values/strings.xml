@@ -82,10 +82,17 @@
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 222: Latency Test\n
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 223: Buffer Test\n
         -ei BufferTestDuration \t ####\t\t Buffer Test Duration \n
-        -ei NumLoadThreads \t ####\t\t Number of Simulated Load Threads (0 - ~10)\n\n\n
-        Example: adb shell am start -n org.drrickorang.loopback/.LoopbackActivity
+        -ei NumLoadThreads \t ####\t\t Number of Simulated Load Threads (0 - 20) \n
+        -ei CI \t ####\t\t Channel Index for USB Audio (0 - 8) \n
+        -ez CaptureSysTrace \t ####\t\t enable/disable systrace and bugreport capturing \n
+        -ez CaptureWavs \t ####\t\t enable/disable .wav file snippets capturing \n
+        -ei NumCaptures \t ####\t\t Number of systrace/bugreport and/or wav snippets to capture \n
+        -ei WaveDuration \t ####\t\t Duration in seconds of captured wave files
+        \n\n\n
+
+        Example: adb shell am start -n org.drrickorang.loopback/.LoopbackActivity \n
         --ei SF 48000 --es FileName output --ei MicSource 3 --ei AudioThread 1 --ei AudioLevel 12
-        --ei TestType 223 --ei BufferTestDuration 5
+        --ei TestType 223 --ei BufferTestDuration 5 --ez CaptureWavs true --ei NumCaptures 5
     </string>
 
     <!-- spinnerSamplingRate Options -->
@@ -128,8 +135,30 @@
     <string name="labelBufferTestWavePlotDuration">Buffer Test Wave Plot Duration (Seconds)
                                                    (Max: %1$d)</string>
     <string name="loadThreadsLabel">Number of Simulated Load Threads</string>
+    <string name="enableSystrace">Systrace and BugReport Captures During Test</string>
+    <string name="enableWavSnippets">Wav Snippet Captures During Test</string>
+    <string name="numCapturesSetting">Number of Systrace/BugReport and or Wav Snippets to Capture
+    </string>
+
     <string name="SaveFileDialogLabel">Save Files To:</string>
     <string name="SaveFileDialogOK">//mnt/sdcard/</string>
     <string name="SaveFileDialogChooseFilenames">Choose Filenames \n and Location</string>
+    <string name="heatTitle">Glitches and Callbacks over Time</string>
+    <string name="compareAll">Compare All</string>
 
+    <string name="systraceHelp">
+        To use this feature it is necessary to launch a shell script on the Android device using ADB
+        shell.  This script is responsible for launching an asynchronous systrace and writing its
+        buffer to file when signaled by the Loopback App.
+        \n\n
+        At the completion of the audio glitch/buffer test the Loopback App will signal the script to
+        exit so the script must be started before each test.
+        \n\n
+        The Loopback App places this script on the Android device when launched at
+        \n
+        /sdcard/Loopback/loopback_listener
+        \n\n
+        Example invocation:\n
+        adb shell \"sh /sdcard/Loopback/loopback_listener\"
+    </string>
 </resources>

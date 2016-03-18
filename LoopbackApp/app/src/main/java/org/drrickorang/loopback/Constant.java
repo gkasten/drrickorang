@@ -72,5 +72,10 @@ public class Constant {
     public static final int BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MIN = 1;
     public static final int MAX_NUM_LOAD_THREADS = 20;
     public static final int MIN_NUM_LOAD_THREADS = 0;
+    public static final int MIN_NUM_CAPTURES = 1;
+    public static final int MAX_NUM_CAPTURES = 100;
+    public static final int DEFAULT_NUM_CAPTURES = 5;
 
+    // Controls size of pre allocated timestamp arrays
+    public static final int MAX_RECORDED_LATE_CALLBACKS_PER_SECOND = 2;
 }

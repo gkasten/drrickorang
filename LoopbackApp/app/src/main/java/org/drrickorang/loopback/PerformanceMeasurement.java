@@ -45,7 +45,7 @@ public class PerformanceMeasurement {
      * Note: if mBufferSize * Constant.MILLIS_PER_SECOND / mSamplingRate == Integer is satisfied,
      * the measurement will be more accurate, but this is not necessary.
      */
-    public PerformanceMeasurement(int bufferSize, int samplingRate, int[] bufferData) {
+    public PerformanceMeasurement(int expectedBufferPeriod, int[] bufferData) {
         mBufferData = bufferData;
 
         mTotalOccurrence = 0;
@@ -53,7 +53,7 @@ public class PerformanceMeasurement {
             mTotalOccurrence += mBufferData[i];
         }
 
-        mExpectedBufferPeriodMs = bufferSize * Constant.MILLIS_PER_SECOND / samplingRate;
+        mExpectedBufferPeriodMs = expectedBufferPeriod;
     }
 
 

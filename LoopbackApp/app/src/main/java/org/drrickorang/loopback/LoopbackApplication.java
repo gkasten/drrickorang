@@ -47,6 +47,9 @@ public class LoopbackApplication extends Application {
     private int mBufferTestDurationInSeconds = 5;
     private int mBufferTestWavePlotDurationInSeconds = 7;
     private int mNumberOfLoadThreads = 4;
+    private boolean mCaptureSysTraceEnabled = false;
+    private boolean mCaptureWavSnippetsEnabled = false;
+    private int mNumStateCaptures = Constant.DEFAULT_NUM_CAPTURES;
 
     public void setDefaults() {
         if (isSafeToUseSles()) {
@@ -210,6 +213,30 @@ public class LoopbackApplication extends Application {
                 Constant.MAX_NUM_LOAD_THREADS);
     }
 
+    public void setNumberOfCaptures (int num){
+        mNumStateCaptures = clamp(num, Constant.MIN_NUM_CAPTURES, Constant.MAX_NUM_CAPTURES);
+    }
+
+    public void setCaptureSysTraceEnabled (boolean enabled){
+        mCaptureSysTraceEnabled = enabled;
+    }
+
+    public void setCaptureWavsEnabled (boolean enabled){
+        mCaptureWavSnippetsEnabled = enabled;
+    }
+
+    public boolean isCaptureSysTraceEnabled () {
+        return mCaptureSysTraceEnabled;
+    }
+
+    public int getNumStateCaptures() {
+        return mNumStateCaptures;
+    }
+
+    public boolean isCaptureWavSnippetsEnabled() {
+        return mCaptureWavSnippetsEnabled;
+    }
+
     /**
      * Returns value if value is within inclusive bounds min through max
      * otherwise returns min or max according to if value is less than or greater than the range
@@ -315,5 +342,4 @@ public class LoopbackApplication extends Application {
     private static void log(String msg) {
         Log.v(TAG, msg);
     }
-
 }

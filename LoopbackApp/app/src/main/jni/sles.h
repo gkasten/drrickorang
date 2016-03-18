@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <android/log.h>
 #include <jni.h>
+#include <stdbool.h>
 
 #ifndef _Included_org_drrickorang_loopback_sles
 #define _Included_org_drrickorang_loopback_sles
@@ -31,6 +32,15 @@
 extern "C" {
 #endif
 #include <audio_utils/fifo.h>
+
+typedef struct {
+    int* timeStampsMs;          // Array of milliseconds since first callback
+    short* callbackDurations;   // Array of milliseconds between callback and previous callback
+    short index;                // Current write position
+    struct timespec startTime;  // Time of first callback {seconds,nanoseconds}
+    int capacity;               // Total number of callback times/lengths that can be recorded
+    bool exceededCapacity;      // Set only if late callbacks come after array is full
+} callbackTimeStamps;
 
 //TODO fix this
 typedef struct {
@@ -73,18 +83,14 @@ typedef struct {
     SLObjectItf engineObject;
 
     int* recorder_buffer_period;
-    int recorder_previous_time_sec;
-    int recorder_previous_time_nsec;
-    int recorder_current_time_sec;
-    int recorder_current_time_nsec;
+    struct timespec recorder_previous_time;
+    struct timespec recorder_current_time;
     int recorder_buffer_count;
     int recorder_max_buffer_period;
 
     int* player_buffer_period;
-    time_t player_previous_time_sec;
-    long player_previous_time_nsec;
-    time_t player_current_time_sec;
-    long player_current_time_nsec;
+    struct timespec player_previous_time;
+    struct timespec player_current_time;
     int player_buffer_count;
     int player_max_buffer_period;
 
@@ -96,6 +102,13 @@ typedef struct {
     int byteBufferLength;
 
     short* loopbackTone;
+
+    callbackTimeStamps recorderTimeStamps;
+    callbackTimeStamps playerTimeStamps;
+    short expectedBufferPeriod;
+
+    jobject captureHolder;
+    const struct JNIInvokeInterface* *jvm;
 } sles_data;
 
 enum {
@@ -103,6 +116,7 @@ enum {
     SLES_FAIL = 1,
     NANOS_PER_MILLI = 1000000,
     NANOS_PER_SECOND = 1000000000,
+    MILLIS_PER_SECOND = 1000,
     RANGE = 1002,
     BUFFER_PERIOD_DISCARD = 10,
     TEST_TYPE_LATENCY = 222,
@@ -111,7 +125,8 @@ enum {
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-             short* loopbackTone);
+             short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
+             const struct JNIInvokeInterface* *jvm);
 
 //note the double pointer to properly free the memory of the structure
 int slesDestroy(sles_data ** ppSles);
@@ -122,7 +137,8 @@ int slesFull(sles_data *pSles);
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
                      int testType, double frequency1, char* qbyteBufferPtr, int byteBufferLength,
-                     short* loopbackTone);
+                     short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
+                     const struct JNIInvokeInterface* *jvm);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
 int slesDestroyServer(sles_data *pSles);
 int* slesGetRecorderBufferPeriod(sles_data *pSles);
@@ -132,6 +148,7 @@ int slesGetPlayerMaxBufferPeriod(sles_data *pSles);
 
 void collectPlayerBufferPeriod(sles_data *pSles);
 void collectRecorderBufferPeriod(sles_data *pSles);
+void captureState(sles_data *pSles, int rank);
 
 ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count);
 

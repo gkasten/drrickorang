@@ -77,6 +77,7 @@ public class LoopbackAudioThread extends Thread {
     private int            mBufferTestDurationInSeconds; // Duration of actual buffer test
     private Context        mContext;
     private int            mBufferTestWavePlotDurationInSeconds;
+    private final CaptureHolder mCaptureHolder;
     private boolean        mIsAdjustingSoundLevel = true; // only used in buffer test
 
 
@@ -85,7 +86,7 @@ public class LoopbackAudioThread extends Thread {
                                BufferPeriod playerBufferPeriod, int testType,
                                int bufferTestDurationInSeconds,
                                int bufferTestWavePlotDurationInSeconds, Context context,
-                               int channelIndex) {
+                               int channelIndex, CaptureHolder captureHolder) {
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
@@ -97,6 +98,7 @@ public class LoopbackAudioThread extends Thread {
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
         mContext = context;
         mChannelIndex = channelIndex;
+        mCaptureHolder = captureHolder;
 
         setName("Loopback_LoopbackAudio");
     }
@@ -126,11 +128,10 @@ public class LoopbackAudioThread extends Thread {
         short[] bufferTestTone = new short[audioTrackWriteDataSize]; // used by AudioTrack.write()
         ToneGeneration toneGeneration = new SineWaveTone(mSamplingRate, frequency1);
 
-        //todo update recorderRunnable for channel index
         mRecorderRunnable = new RecorderRunnable(mLatencyTestPipe, mSamplingRate, mChannelConfigIn,
                 mAudioFormat, mMinRecorderBuffSizeInBytes, MediaRecorder.AudioSource.MIC, this,
                 mRecorderBufferPeriod, mTestType, frequency1, frequency2,
-                mBufferTestWavePlotDurationInSeconds, mContext, mChannelIndex);
+                mBufferTestWavePlotDurationInSeconds, mContext, mChannelIndex, mCaptureHolder);
         mRecorderRunnable.setBufferTestDurationInSeconds(mBufferTestDurationInSeconds);
         mRecorderThread = new Thread(mRecorderRunnable);
         mRecorderThread.setName("Loopback_RecorderRunnable");

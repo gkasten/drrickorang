@@ -20,19 +20,25 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.CompoundButton;
+import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.AdapterView;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 
 /**
  * This activity displays all settings that can be adjusted by the user.
  */
 
-public class SettingsActivity extends Activity implements OnItemSelectedListener {
+public class SettingsActivity extends Activity implements OnItemSelectedListener,
+        ToggleButton.OnCheckedChangeListener {
 
     private static final String TAG = "SettingsActivity";
 
@@ -46,6 +52,9 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
     private SettingsPicker mBufferTestDurationUI;
     private SettingsPicker mWavePlotDurationUI;
     private SettingsPicker mLoadThreadUI;
+    private SettingsPicker mNumCapturesUI;
+    private ToggleButton   mSystraceToggleButton;
+    private ToggleButton   mWavCaptureToggleButton;
 
     ArrayAdapter<CharSequence> mAdapterSamplingRate;
 
@@ -193,6 +202,28 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             }
         });
 
+        // Settings Picker for Number of Captures
+        mNumCapturesUI = (SettingsPicker) findViewById(R.id.numCapturesSettingPicker);
+        mNumCapturesUI.setMinMaxDefault(Constant.MIN_NUM_CAPTURES, Constant.MAX_NUM_CAPTURES,
+                getApp().getNumStateCaptures());
+        mNumCapturesUI.setTitle(getResources().getString(R.string.numCapturesSetting));
+        mNumCapturesUI.setSettingsChangeListener(new SettingsPicker.SettingChangeListener() {
+            @Override
+            public void settingChanged(int value) {
+                log("new num captures:" + value);
+                getApp().setNumberOfCaptures(value);
+                setSettingsHaveChanged();
+            }
+        });
+
+        mWavCaptureToggleButton = (ToggleButton) findViewById(R.id.wavSnippetsEnabledToggle);
+        mWavCaptureToggleButton.setChecked(getApp().isCaptureWavSnippetsEnabled());
+        mWavCaptureToggleButton.setOnCheckedChangeListener(this);
+
+        mSystraceToggleButton = (ToggleButton) findViewById(R.id.SystraceEnabledToggle);
+        mSystraceToggleButton.setChecked(getApp().isCaptureSysTraceEnabled());
+        mSystraceToggleButton.setOnCheckedChangeListener(this);
+
         refresh();
     }
 
@@ -234,6 +265,9 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             mSpinnerChannelIndex.setSelection(0, false);
             mSpinnerChannelIndex.setEnabled(false);
         }
+
+        mNumCapturesUI.setEnabled(getApp().isCaptureSysTraceEnabled() ||
+                getApp().isCaptureWavSnippetsEnabled());
 
         String info = getApp().getSystemInfo();
         mTextSettingsInfo.setText("SETTINGS - " + info);
@@ -280,6 +314,17 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         }
     }
 
+    @Override
+    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        if (buttonView.getId() == mWavCaptureToggleButton.getId()){
+            getApp().setCaptureWavsEnabled(isChecked);
+        } else if (buttonView.getId() == mSystraceToggleButton.getId()) {
+            getApp().setCaptureSysTraceEnabled(isChecked);
+        }
+        mNumCapturesUI.setEnabled(getApp().isCaptureSysTraceEnabled() ||
+                getApp().isCaptureWavSnippetsEnabled());
+    }
+
     private void setSettingsHaveChanged() {
         Intent intent = new Intent();
         setResult(RESULT_OK, intent);
@@ -290,6 +335,20 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         // Another interface callback
     }
 
+    public void onButtonSysTraceHelp(View view) {
+        // Create a PopUpWindow with scrollable TextView
+        View puLayout = this.getLayoutInflater().inflate(R.layout.report_window, null);
+        PopupWindow popUp = new PopupWindow(puLayout, ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, true);
+
+        // Generate report of glitch intervals and set pop up window text
+        TextView helpText =
+                (TextView) popUp.getContentView().findViewById(R.id.ReportInfo);
+        helpText.setText(getResources().getString(R.string.systraceHelp));
+
+        // display pop up window, dismissible with back button
+        popUp.showAtLocation(findViewById(R.id.settingsMainLayout), Gravity.TOP, 0, 0);
+    }
 
     /** Called when the user clicks the button */
     public void onButtonClick(View view) {

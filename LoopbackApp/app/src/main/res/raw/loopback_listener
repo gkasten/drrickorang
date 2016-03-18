@@ -1,0 +1,69 @@
+#!/system/bin/sh
+
+####
+# Continuously checks for presence of signal file in 1 second intervals
+# Reads either a filename prefix or termination signal from file when it exists
+# Writes output of atrace and bugreport to files with supplied prefix
+####
+
+SYSTRACE_SUFFIX=".trace";
+BUGREPORT_SUFFIX="_bugreport.txt.gz";
+TERMINATE_SIGNAL="QUIT";
+SIGNAL_FILE="/sdcard/Loopback/loopback_signal"
+TRACE_CATEGORIES="sched audio"
+BUFFER_KB="8000"
+
+function exitListener {
+    # Exit atrace, remove signal file, and exit
+
+    echo "LOOPBACK LISTENER: stopping trace before exiting"
+    rm $SIGNAL_FILE
+    atrace --async_stop -z > /dev/null
+    echo "LOOPBACK LISTENER: exiting"
+    exit 1
+}
+
+# Begin an asynchronous systrace writing into a circular buffer of size BUFFER_KB
+echo "LOOPBACK LISTENER: starting trace"
+atrace --async_start -z -c -b $BUFFER_KB $TRACE_CATEGORIES
+echo " "
+
+# Remove signal file erroneously left behind from previous tests
+if [ -e "$SIGNAL_FILE" ]; then rm $SIGNAL_FILE; fi
+
+while true
+do
+    #echo "LOOPBACK LISTENER: checking for file $SIGNAL_FILE"
+    if [ -e "$SIGNAL_FILE" ] && [ -s "$SIGNAL_FILE" ]
+    then
+        contents=$(cat $SIGNAL_FILE)
+
+        # Ensure that if more than one listener is running only one will consume signal
+        > $SIGNAL_FILE
+
+        if [ $contents == $TERMINATE_SIGNAL ]
+        then
+            exitListener
+        else
+            # write Systrace and bugreport to files
+
+            echo "LOOPBACK LISTENER: dumping systrace to file $contents$SYSTRACE_SUFFIX"
+            atrace --async_dump -z -c -b $BUFFER_KB $TRACE_CATEGORIES > $contents$SYSTRACE_SUFFIX
+
+            echo "LOOPBACK LISTENER: dumping bugreport to file $contents$BUGREPORT_SUFFIX"
+            bugreport | gzip > $contents$BUGREPORT_SUFFIX
+
+            echo "LOOPBACK LISTENER: Finished systrace and bugreport"
+
+            # Check for case that test has ended while capturing state and exit
+            if [ -e "$SIGNAL_FILE" ] && [ -s "$SIGNAL_FILE" ] \
+            && [ $(cat $SIGNAL_FILE) == $TERMINATE_SIGNAL ]
+            then
+                exitListener
+            fi
+
+            rm $SIGNAL_FILE
+        fi
+    fi
+    sleep 1
+done

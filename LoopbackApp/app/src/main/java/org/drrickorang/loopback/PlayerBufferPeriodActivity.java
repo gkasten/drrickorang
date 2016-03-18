@@ -39,26 +39,10 @@ public class PlayerBufferPeriodActivity extends Activity {
         Bundle bundle = getIntent().getExtras();
 
         // setup the histogram
-        int[] bufferTimeStampData = bundle.getIntArray("playerBufferPeriodTimeStampArray");
         int[] bufferData = bundle.getIntArray("playerBufferPeriodArray");
         int bufferDataMax = bundle.getInt("playerBufferPeriodMax");
-        histogramView.setBufferPeriodTimeStampArray(bufferTimeStampData);
         histogramView.setBufferPeriodArray(bufferData);
         histogramView.setMaxBufferPeriod(bufferDataMax);
-
-
-        // do performance measurement if there are buffer period data
-        if (bufferData != null) {
-            // this is the range of data that actually has values
-            int usefulDataRange = Math.min(bufferDataMax + 1, bufferData.length);
-            int[] usefulBufferData = Arrays.copyOfRange(bufferData, 0, usefulDataRange);
-            int playerBufferSize = bundle.getInt("playerBufferSize");
-            int samplingRate = bundle.getInt("samplingRate");
-            PerformanceMeasurement measurement = new PerformanceMeasurement(playerBufferSize,
-                                                 samplingRate, usefulBufferData);
-            measurement.measurePerformance();
-        }
-
     }
 
 }

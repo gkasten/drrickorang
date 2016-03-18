@@ -68,6 +68,7 @@ public class RecorderRunnable implements Runnable {
     private long                  mStartTimeMs;
     private int                   mBufferTestDurationInSeconds;
     private long                  mBufferTestDurationMs;
+    private final CaptureHolder   mCaptureHolder;
     private final Context         mContext;
     private AudioManager          mAudioManager;
     private GlitchDetectionThread mGlitchDetectionThread;
@@ -84,12 +85,11 @@ public class RecorderRunnable implements Runnable {
     private double[]  mSamples; // samples shown on WavePlotView
     private int       mSamplesIndex;
 
-
     RecorderRunnable(PipeShort latencyPipe, int samplingRate, int channelConfig, int audioFormat,
                      int recorderBufferInBytes, int micSource, LoopbackAudioThread audioThread,
                      BufferPeriod recorderBufferPeriod, int testType, double frequency1,
                      double frequency2, int bufferTestWavePlotDurationInSeconds,
-                     Context context, int channelIndex) {
+                     Context context, int channelIndex, CaptureHolder captureHolder) {
         mLatencyTestPipeShort = latencyPipe;
         mSamplingRate = samplingRate;
         mChannelConfig = channelConfig;
@@ -104,6 +104,7 @@ public class RecorderRunnable implements Runnable {
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
         mContext = context;
         mChannelIndex = channelIndex;
+        mCaptureHolder = captureHolder;
     }
 
 
@@ -293,7 +294,7 @@ public class RecorderRunnable implements Runnable {
         mBufferTestPipeShort = new PipeShort(Constant.MAX_SHORTS);
         mGlitchDetectionThread = new GlitchDetectionThread(mFrequency1, mFrequency2, mSamplingRate,
                 mFFTSamplingSize, mFFTOverlapSamples, mBufferTestDurationInSeconds,
-                mBufferTestWavePlotDurationInSeconds, mBufferTestPipeShort);
+                mBufferTestWavePlotDurationInSeconds, mBufferTestPipeShort, mCaptureHolder);
         mGlitchDetectionThread.start();
         mRecorder.startRecording();
     }

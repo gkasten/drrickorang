@@ -30,6 +30,9 @@ public class GlitchDetectionThread extends Thread {
     // the acceptable difference between the expected center of mass and what we actually get
     private static final double mAcceptablePercentDifference = 0.02; // change this if necessary
 
+    // Measured in FFT samples
+    private static final int GLITCH_CONCENTRATION_WINDOW_SIZE = 1500; // approx 30 seconds at 48kHz
+    private static final int COOLDOWN_WINDOW = 4500; // approx 90 seconds at 48kHz
 
     private boolean mIsRunning; // condition must be true for the thread to run
     private short   mShortBuffer[]; // keep the data read from Pipe
@@ -56,14 +59,18 @@ public class GlitchDetectionThread extends Thread {
     private FFT     mFFT;
     private boolean mGlitchingIntervalTooLong = false; // true if mGlitches is full
 
-    //Pre-Allocated buffers for glitch detection process
+    // Pre-Allocated buffers for glitch detection process
     private final double[] mFFTResult;
     private final double[] mCurrentSamples;
     private final double[] mImagArray;
 
+    // Used for captured SysTrace dumps
+    private CaptureHolder mCaptureHolder;
+    private int mLastGlitchCaptureAttempt = 0;
+
     GlitchDetectionThread(double frequency1, double frequency2, int samplingRate,
           int FFTSamplingSize, int FFTOverlapSamples, int bufferTestDurationInSeconds,
-          int bufferTestWavePlotDurationInSeconds, Pipe pipe) {
+          int bufferTestWavePlotDurationInSeconds, Pipe pipe, CaptureHolder captureHolder) {
         mPipe = pipe;
         mFrequency1 = frequency1;
         mFrequency2 = frequency2;
@@ -90,6 +97,9 @@ public class GlitchDetectionThread extends Thread {
         computeExpectedCenterOfMass();
 
         setName("Loopback_GlitchDetection");
+
+        mCaptureHolder = captureHolder;
+        mCaptureHolder.setWaveDataBuffer(mWaveDataRing);
 
         mThreadSleepDurationMs = FFTOverlapSamples * Constant.MILLIS_PER_SECOND / mSamplingRate;
         if (mThreadSleepDurationMs < 1) {
@@ -200,13 +210,37 @@ public class GlitchDetectionThread extends Thread {
         } else {
             // centerOfMass == -1 if the wave we get is silence.
             if (difference > mAcceptablePercentDifference || centerOfMass == -1) {
+                // Glitch Detected
                 mGlitches[mGlitchesIndex] = mFFTCount;
                 mGlitchesIndex++;
+                if (mCaptureHolder.isCapturingSysTraces() || mCaptureHolder.isCapturingWavs()) {
+                    checkGlitchConcentration();
+                }
             }
         }
         mFFTCount++;
     }
 
+    private void checkGlitchConcentration(){
+
+        final int recordedGlitch = mGlitches[mGlitchesIndex-1];
+        if (recordedGlitch - mLastGlitchCaptureAttempt <= COOLDOWN_WINDOW){
+            return;
+        }
+
+        final int windowBegin = recordedGlitch - GLITCH_CONCENTRATION_WINDOW_SIZE;
+
+        int numGlitches = 0;
+        for (int index = mGlitchesIndex-1; index >= 0 && mGlitches[index] >= windowBegin; --index){
+            ++numGlitches;
+        }
+
+        int captureResponse = mCaptureHolder.captureState(numGlitches);
+        if (captureResponse != CaptureHolder.NEW_CAPTURE_IS_LEAST_INTERESTING){
+            mLastGlitchCaptureAttempt = recordedGlitch;
+        }
+
+    }
 
     /** Compute the center of mass of fftResults. Width is the width of each beam. */
     private double computeCenterOfMass(double[] fftResult, double width) {

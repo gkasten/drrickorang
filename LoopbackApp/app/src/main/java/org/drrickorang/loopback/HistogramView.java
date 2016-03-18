@@ -39,9 +39,6 @@ public class HistogramView extends View {
     private Paint mLinePaint;
     private Paint mXLabelPaint;
 
-    private int[] mTimeStampData;
-    private int[] mDisplayTimeStampData;
-
     private int[] mData; // data for buffer period
     private int[] mDisplayData; // modified data that is used to draw histogram
     private int mMaxBufferPeriod = 0;
@@ -165,36 +162,8 @@ public class HistogramView extends View {
                         mDisplayData[range - 1] += mData[i];
                     }
                 }
-
-                // for timestamp
-                if (mTimeStampData != null) {
-                    mDisplayTimeStampData = new int[mMaxNumberOfBeams];
-                    mDisplayTimeStampData[0] = mTimeStampData[0];
-                    // find the max timestamp of each bucket.
-                    for (int i = 1; i < (range - 1); i++) {
-                        int maxTimeStamp = mTimeStampData[(((i - 1) * interval) + 1)];
-                        for (int j = (((i - 1) * interval) + 1); (j <= (i * interval)); j++) {
-                            if (mTimeStampData[j] > maxTimeStamp)
-                                maxTimeStamp = mTimeStampData[j];
-                        }
-                        mDisplayTimeStampData[i] = maxTimeStamp;
-                    }
-                    if (exceedBufferPeriodRange) {
-                        mDisplayTimeStampData[range - 1] = mTimeStampData[oldRange - 1];
-                    } else {
-                        int maxTimeStamp = mTimeStampData[(((range - 2) * interval) + 1)];
-                        for (int i = (((range - 2) * interval) + 1); i < oldRange; i++) {
-                            if (mTimeStampData[i] > maxTimeStamp) {
-                                maxTimeStamp = mTimeStampData[i];
-                            }
-                        }
-                        mDisplayTimeStampData[range - 1] = maxTimeStamp;
-                    }
-                }
-
             } else {
                 mDisplayData = mData;
-                mDisplayTimeStampData = mTimeStampData;
             }
 
             // calculate the max frequency among all latencies
@@ -358,26 +327,6 @@ public class HistogramView extends View {
         width = bounds.left + bounds.width();
         return width;
     }
-
-
-    /** Copy timestamp data into "mTimeStampData" */
-    public void setBufferPeriodTimeStampArray(int[] timeStamp) {
-        if (timeStamp == null) {
-            return;
-        }
-
-        if (mTimeStampData == null || timeStamp.length != mTimeStampData.length) {
-            mTimeStampData = new int[timeStamp.length];
-        }
-
-        System.arraycopy(timeStamp, 0, mTimeStampData, 0, timeStamp.length);
-    }
-
-
-    public int[] getBufferPeriodDisplayTimeStampArray() {
-        return mDisplayTimeStampData;
-    }
-
 
     /** Copy buffer period data into "mData" */
     public void setBufferPeriodArray(int[] data) {

@@ -48,6 +48,17 @@ public class AudioFileOutput {
 
 
     public boolean writeData(double[] data) {
+        return writeRingBufferData(data, 0, data.length);
+    }
+
+    /**
+     * Writes recorded wav data to file
+     *  endIndex <= startIndex:  Writes [startIndex, data.length) then [0, endIndex)
+     *  endIndex > startIndex :  Writes [startIndex, endIndex)
+     * Returns true on successful write to file
+     */
+    public boolean writeRingBufferData(double[] data, int startIndex, int endIndex) {
+
         boolean status = false;
         ParcelFileDescriptor parcelFileDescriptor = null;
         try {
@@ -56,9 +67,19 @@ public class AudioFileOutput {
             FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
             mOutputStream = new FileOutputStream(fileDescriptor);
             log("Done creating output stream");
-            int sampleCount = data.length;
+            int sampleCount = endIndex - startIndex;
+            if (sampleCount <= 0) {
+                sampleCount += data.length;
+            }
             writeHeader(sampleCount);
-            writeDataBuffer(data);
+
+            if (endIndex > startIndex) {
+                writeDataBuffer(data, startIndex, endIndex);
+            } else {
+                writeDataBuffer(data, startIndex, data.length);
+                writeDataBuffer(data, 0, endIndex);
+            }
+
             mOutputStream.close();
             status = true;
             parcelFileDescriptor.close();
@@ -77,7 +98,6 @@ public class AudioFileOutput {
         }
         return status;
     }
-
 
     private void writeHeader(int samples) {
         if (mOutputStream != null) {
@@ -124,20 +144,19 @@ public class AudioFileOutput {
     }
 
 
-    private void writeDataBuffer(double [] data) {
+    private void writeDataBuffer(double [] data, int startIndex, int end) {
         if (mOutputStream != null) {
             try {
-                int sampleCount = data.length;
                 int bufferSize = 1024; //blocks of 1024 samples
                 byte [] buffer = new byte[bufferSize * 2];
 
-                for (int ii = 0; ii < sampleCount; ii += bufferSize) {
+                for (int ii = startIndex; ii < end; ii += bufferSize) {
                     //clear buffer
                     Arrays.fill(buffer, (byte) 0);
                     int bytesUsed = 0;
                     for (int jj = 0; jj < bufferSize; jj++) {
                         int index = ii + jj;
-                        if (index >= sampleCount)
+                        if (index >= end)
                             break;
                         int value = (int) Math.round(data[index] * Short.MAX_VALUE);
                         byte ba = (byte) (0xFF & (value >> 8));  //little-endian

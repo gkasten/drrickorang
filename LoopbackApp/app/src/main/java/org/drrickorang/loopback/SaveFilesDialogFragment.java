@@ -56,9 +56,9 @@ public class SaveFilesDialogFragment extends DialogFragment {
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
 
-        //todo make string resources 3x
         builder.setMessage(R.string.SaveFileDialogLabel)
-                .setPositiveButton(R.string.SaveFileDialogOK, new DialogInterface.OnClickListener() {
+                .setPositiveButton(R.string.SaveFileDialogOK,
+                        new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         dialog.dismiss();
                         mListener.onSaveDialogSelect(SaveFilesDialogFragment.this, true);

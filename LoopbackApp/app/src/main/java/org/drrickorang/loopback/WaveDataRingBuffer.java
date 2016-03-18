@@ -16,14 +16,20 @@
 
 package org.drrickorang.loopback;
 
+import java.util.Arrays;
+
 /**
- * Maintains a recording of wave data of last n seconds
+ * Maintains two ring buffers for recording wav data
+ * At any one time one buffer is available for writing to file while one is recording incoming data
  */
 public class WaveDataRingBuffer {
 
-    private final double[] mWaveRecord;
-    private volatile int index = 0; // between 0 and mWaveRecord.length - 1
-    private boolean arrayFull = false; // true after index has wrapped
+    public interface ReadableWaveDeck {
+        boolean writeToFile(AudioFileOutput audioFile);
+    }
+
+    private WaveDeck mLoadedDeck;
+    private WaveDeck mShelvedDeck;
 
     public WaveDataRingBuffer(int size) {
         if (size < Constant.SAMPLING_RATE_MIN * Constant.BUFFER_TEST_DURATION_SECONDS_MIN) {
@@ -31,66 +37,137 @@ public class WaveDataRingBuffer {
         } else if (size > Constant.SAMPLING_RATE_MAX * Constant.BUFFER_TEST_DURATION_SECONDS_MAX) {
             size = Constant.SAMPLING_RATE_MAX * Constant.BUFFER_TEST_DURATION_SECONDS_MAX;
         }
+        mLoadedDeck = new WaveDeck(size);
+        mShelvedDeck = new WaveDeck(size);
+    }
 
-        mWaveRecord = new double[size];
+    public synchronized void writeWaveData(double[] data, int srcPos, int length) {
+        mLoadedDeck.writeWaveData(data, srcPos, length);
+    }
+
+    public synchronized double[] getWaveRecord() {
+        return mLoadedDeck.getWaveRecord();
+    }
+
+    private void SwapDecks() {
+        WaveDeck temp = mShelvedDeck;
+        mShelvedDeck = mLoadedDeck;
+        mLoadedDeck = temp;
     }
 
     /**
-     * Write length number of doubles from data into ring buffer from starting srcPos
+     * Returns currently writing buffer as writeToFile interface, load erased shelved deck for write
+     * If shelved deck is still being read returns null
+     **/
+    public synchronized ReadableWaveDeck getWaveDeck() {
+        if (!mShelvedDeck.isBeingRead()) {
+            SwapDecks();
+            mShelvedDeck.readyForRead();
+            mLoadedDeck.reset();
+            return mShelvedDeck;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Maintains a recording of wave data of last n seconds
      */
-    public synchronized void writeWaveData(double[] data, int srcPos, int length) {
-        if (length > data.length - srcPos) {
-            // requested to write more data than available
-            // bad request leave data un-affected
-            return;
+    public class WaveDeck implements ReadableWaveDeck {
+
+        private double[] mWaveRecord;
+        private volatile int mIndex = 0; // between 0 and mWaveRecord.length - 1
+        private boolean mArrayFull = false; // true after mIndex has wrapped
+        private boolean mIsBeingRead = false;
+
+        public WaveDeck(int size) {
+            mWaveRecord = new double[size];
         }
 
-        if (length >= mWaveRecord.length) {
-            // requested write would fill or exceed ring buffer capacity
-            // fill ring buffer with last segment of requested write
-            System.arraycopy(data, srcPos + (length - mWaveRecord.length), mWaveRecord, 0,
-                    mWaveRecord.length);
-            index = 0;
-        } else if (mWaveRecord.length - index > length) {
-            // write requested data from current offset
-            System.arraycopy(data, srcPos, mWaveRecord, index, length);
-            index += length;
-        } else {
-            // write to available buffer then wrap and overwrite previous records
-            if (!arrayFull) {
-                arrayFull = true;
+        /**
+         * Write length number of doubles from data into ring buffer from starting srcPos
+         */
+        public void writeWaveData(double[] data, int srcPos, int length) {
+            if (length > data.length - srcPos) {
+                // requested to write more data than available
+                // bad request leave data un-affected
+                return;
             }
 
-            int availBuff = mWaveRecord.length - index;
+            if (length >= mWaveRecord.length) {
+                // requested write would fill or exceed ring buffer capacity
+                // fill ring buffer with last segment of requested write
+                System.arraycopy(data, srcPos + (length - mWaveRecord.length), mWaveRecord, 0,
+                        mWaveRecord.length);
+                mIndex = 0;
+            } else if (mWaveRecord.length - mIndex > length) {
+                // write requested data from current offset
+                System.arraycopy(data, srcPos, mWaveRecord, mIndex, length);
+                mIndex += length;
+            } else {
+                // write to available buffer then wrap and overwrite previous records
+                if (!mArrayFull) {
+                    mArrayFull = true;
+                }
 
-            System.arraycopy(data, srcPos, mWaveRecord, index, availBuff);
-            System.arraycopy(data, srcPos + availBuff, mWaveRecord, 0, length - availBuff);
+                int availBuff = mWaveRecord.length - mIndex;
 
-            index = length - availBuff;
+                System.arraycopy(data, srcPos, mWaveRecord, mIndex, availBuff);
+                System.arraycopy(data, srcPos + availBuff, mWaveRecord, 0, length - availBuff);
+
+                mIndex = length - availBuff;
+
+            }
 
         }
 
-    }
+        /**
+         * Returns a private copy of recorded wave data
+         *
+         * @return double array of wave recording, rearranged with oldest sample at first index
+         */
+        public double[] getWaveRecord() {
+            double outputBuffer[] = new double[mWaveRecord.length];
 
-    /**
-     * Returns a private copy of recorded wave data
-     *
-     * @return double array of wave recording, rearranged with oldest sample at first index
-     */
-    public synchronized double[] getWaveRecord() {
-        double outputBuffer[] = new double[mWaveRecord.length];
+            if (!mArrayFull) {
+                //return partially filled sample with trailing zeroes
+                System.arraycopy(mWaveRecord, 0, outputBuffer, 0, mIndex);
+                Arrays.fill(outputBuffer, mIndex+1, outputBuffer.length-1, 0);
+            } else {
+                //copy buffer to contiguous sample and return unwrapped array
+                System.arraycopy(mWaveRecord, mIndex, outputBuffer, 0, mWaveRecord.length - mIndex);
+                System.arraycopy(mWaveRecord, 0, outputBuffer, mWaveRecord.length - mIndex, mIndex);
+            }
 
-        if (!arrayFull) {
-            //return partially filled sample with trailing zeroes
-            System.arraycopy(mWaveRecord, 0, outputBuffer, 0, index);
-        } else {
-            //copy buffer to contiguous sample and return unwrapped array
-            System.arraycopy(mWaveRecord, index, outputBuffer, 0, mWaveRecord.length - index);
-            System.arraycopy(mWaveRecord, 0, outputBuffer, mWaveRecord.length - index, index);
+            return outputBuffer;
         }
 
-        return outputBuffer;
+        /** Make buffer available for new recording **/
+        public void reset() {
+            mIndex = 0;
+            mArrayFull = false;
+        }
 
+        public boolean isBeingRead() {
+            return mIsBeingRead;
+        }
+
+        private void readyForRead() {
+            mIsBeingRead = true;
+        }
+
+        @Override
+        public boolean writeToFile(AudioFileOutput audioFile) {
+            boolean successfulWrite;
+            if (mArrayFull) {
+                successfulWrite = audioFile.writeRingBufferData(mWaveRecord, mIndex, mIndex);
+            } else {
+                // Write only filled part of array to file
+                successfulWrite = audioFile.writeRingBufferData(mWaveRecord, 0, mIndex);
+            }
+
+            mIsBeingRead = false;
+            return successfulWrite;
+        }
     }
-
 }

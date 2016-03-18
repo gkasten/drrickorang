@@ -66,6 +66,8 @@ public class NativeAudioThread extends Thread {
     private int     mRecorderMaxBufferPeriod;
     private int[]   mPlayerBufferPeriod;
     private int     mPlayerMaxBufferPeriod;
+    private BufferCallbackTimes mPlayerCallbackTimes;
+    private BufferCallbackTimes mRecorderCallbackTimes;
     private int     mBufferTestWavePlotDurationInSeconds;
     private double  mFrequency1 = Constant.PRIME_FREQUENCY_1;
     private double  mFrequency2 = Constant.PRIME_FREQUENCY_2; // not actually used
@@ -74,6 +76,7 @@ public class NativeAudioThread extends Thread {
     private int     mFFTOverlapSamples;
     private int[]   mAllGlitches;
     private boolean mGlitchingIntervalTooLong;
+    private final CaptureHolder mCaptureHolder;
 
     private PipeByteBuffer        mPipeByteBuffer;
     private GlitchDetectionThread mGlitchDetectionThread;
@@ -81,7 +84,7 @@ public class NativeAudioThread extends Thread {
 
     public NativeAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
                              int micSource, int testType, int bufferTestDurationInSeconds,
-                             int bufferTestWavePlotDurationInSeconds) {
+                             int bufferTestWavePlotDurationInSeconds, CaptureHolder captureHolder) {
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
@@ -89,7 +92,7 @@ public class NativeAudioThread extends Thread {
         mTestType = testType;
         mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
-
+        mCaptureHolder = captureHolder;
         setName("Loopback_NativeAudio");
     }
 
@@ -109,7 +112,8 @@ public class NativeAudioThread extends Thread {
     //jni calls
     public native long  slesInit(int samplingRate, int frameCount, int micSource,
                                  int testType, double frequency1, ByteBuffer byteBuffer,
-                                 short[] sincTone);
+                                 short[] sincTone, int maxRecordedLateCallbacks,
+                                 CaptureHolder captureHolder);
     public native int   slesProcessNext(long sles_data, double[] samples, long offset);
     public native int   slesDestroy(long sles_data);
 
@@ -118,6 +122,8 @@ public class NativeAudioThread extends Thread {
     public native int   slesGetRecorderMaxBufferPeriod(long sles_data);
     public native int[] slesGetPlayerBufferPeriod(long sles_data);
     public native int   slesGetPlayerMaxBufferPeriod(long sles_data);
+    public native BufferCallbackTimes slesGetPlayerCallbackTimeStamps(long sles_data);
+    public native BufferCallbackTimes slesGetRecorderCallbackTimeStamps(long sles_data);
 
 
     public void run() {
@@ -157,9 +163,11 @@ public class NativeAudioThread extends Thread {
         // mPipeByteBuffer is only used in buffer test
         mPipeByteBuffer = new PipeByteBuffer(Constant.MAX_SHORTS);
         long startTimeMs = System.currentTimeMillis();
-        long sles_data = slesInit(mSamplingRate, mMinPlayerBufferSizeInBytes /
-                                  Constant.BYTES_PER_FRAME, mMicSource, mTestType, mFrequency1,
-                                  mPipeByteBuffer.getByteBuffer(), loopbackTone);
+        long sles_data = slesInit(mSamplingRate,
+                mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME, mMicSource, mTestType,
+                mFrequency1, mPipeByteBuffer.getByteBuffer(), loopbackTone,
+                mBufferTestDurationInSeconds * Constant.MAX_RECORDED_LATE_CALLBACKS_PER_SECOND,
+                mCaptureHolder);
         log(String.format("sles_data = 0x%X", sles_data));
 
         if (sles_data == 0) {
@@ -241,6 +249,9 @@ public class NativeAudioThread extends Thread {
             mPlayerBufferPeriod = slesGetPlayerBufferPeriod(sles_data);
             mPlayerMaxBufferPeriod = slesGetPlayerMaxBufferPeriod(sles_data);
 
+            mPlayerCallbackTimes = slesGetPlayerCallbackTimeStamps(sles_data);
+            mRecorderCallbackTimes = slesGetRecorderCallbackTimeStamps(sles_data);
+
             // get glitches data only for buffer test
             if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD) {
                 mAllGlitches = mGlitchDetectionThread.getGlitches();
@@ -302,7 +313,7 @@ public class NativeAudioThread extends Thread {
 
         mGlitchDetectionThread = new GlitchDetectionThread(mFrequency1, mFrequency2, mSamplingRate,
             mFFTSamplingSize, mFFTOverlapSamples, mBufferTestDurationInSeconds,
-            mBufferTestWavePlotDurationInSeconds, mPipeByteBuffer);
+            mBufferTestWavePlotDurationInSeconds, mPipeByteBuffer, mCaptureHolder);
         mGlitchDetectionThread.start();
     }
 
@@ -456,4 +467,11 @@ public class NativeAudioThread extends Thread {
         return mBufferTestDurationInSeconds;
     }
 
+    public BufferCallbackTimes getPlayerCallbackTimes() {
+        return mPlayerCallbackTimes;
+    }
+
+    public BufferCallbackTimes getRecorderCallbackTimes() {
+        return mRecorderCallbackTimes;
+    }
 }
