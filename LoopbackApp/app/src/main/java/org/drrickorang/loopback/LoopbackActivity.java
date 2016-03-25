@@ -86,7 +86,8 @@ public class LoopbackActivity extends Activity
     private static final int THREAD_SLEEP_DURATION_MS = 200;
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO_LATENCY = 201;
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO_BUFFER = 202;
-    private static final int PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 203;
+    private static final int PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_RESULTS = 203;
+    private static final int PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_SCRIPT = 204;
     private static final int LATENCY_TEST_STARTED = 300;
     private static final int LATENCY_TEST_ENDED = 301;
     private static final int BUFFER_TEST_STARTED = 302;
@@ -425,10 +426,17 @@ public class LoopbackActivity extends Activity
         View view = getLayoutInflater().inflate(R.layout.main_activity, null);
         setContentView(view);
 
-        boolean successfulWrite = AtraceScriptsWriter.writeScriptsToFile(this);
-        if(!successfulWrite) {
-            showToast("Unable to write loopback_listener script to device");
+        // TODO: Write script to file at more appropriate time, from settings activity or intent
+        // TODO: Respond to failure with more than just a toast
+        if (hasWriteFilePermission()){
+            boolean successfulWrite = AtraceScriptsWriter.writeScriptsToFile(this);
+            if(!successfulWrite) {
+                showToast("Unable to write loopback_listener script to device");
+            }
+        } else {
+            requestWriteFilePermission(PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_SCRIPT);
         }
+
 
         mTextInfo = (TextView) findViewById(R.id.textInfo);
         mBarMasterLevel = (SeekBar) findViewById(R.id.BarMasterLevel);
@@ -1073,7 +1081,7 @@ public class LoopbackActivity extends Activity
     public void saveAllTo(String fileName) {
 
         if (!hasWriteFilePermission()) {
-            requestWriteFilePermission();
+            requestWriteFilePermission(PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_RESULTS);
             return;
         }
 
@@ -1564,7 +1572,7 @@ public class LoopbackActivity extends Activity
 
     public void showToast(String msg) {
         if (mToast == null) {
-            mToast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT);
+            mToast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG);
         } else {
             mToast.setText(msg);
         }
@@ -2058,8 +2066,10 @@ public class LoopbackActivity extends Activity
 
         // Save all files or run requested test after being granted permissions
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            if (requestCode == PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE ) {
+            if (requestCode == PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_RESULTS ) {
                 saveAllTo(getFileNamePrefix());
+            } else if (requestCode == PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_SCRIPT ) {
+                AtraceScriptsWriter.writeScriptsToFile(this);
             } else if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO_BUFFER) {
                 startBufferTest();
             } else if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO_LATENCY) {
@@ -2084,14 +2094,12 @@ public class LoopbackActivity extends Activity
     /**
      * Requests the WRITE_EXTERNAL_STORAGE permission from the user
      */
-    private void requestWriteFilePermission() {
+    private void requestWriteFilePermission(int requestCode) {
 
         String requiredPermission = Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
         // request the permission.
-        ActivityCompat.requestPermissions(this,
-                new String[]{requiredPermission},
-                PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+        ActivityCompat.requestPermissions(this, new String[]{requiredPermission}, requestCode);
     }
 
     /**

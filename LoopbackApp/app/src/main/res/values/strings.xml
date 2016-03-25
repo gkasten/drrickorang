@@ -148,7 +148,7 @@
 
     <string name="systraceHelp">
         To use this feature it is necessary to launch a shell script on the Android device using ADB
-        shell.  This script is responsible for launching an asynchronous systrace and writing its
+        shell.  This script is responsible for launching an asynchronous Systrace and writing its
         buffer to file when signaled by the Loopback App.
         \n\n
         At the completion of the audio glitch/buffer test the Loopback App will signal the script to
@@ -158,7 +158,14 @@
         \n
         /sdcard/Loopback/loopback_listener
         \n\n
+
+        Trace Categories: The loopback_listener script takes as arguments the categories to be
+        tracked in the Systrace. By default the sched and audio categories are included.  For a list
+        of available categories see\n
+        developer.android.com/tools/help/systrace.html
+        \n\n
+
         Example invocation:\n
-        adb shell \"sh /sdcard/Loopback/loopback_listener\"
+        adb shell \"sh /sdcard/Loopback/loopback_listener load am\"
     </string>
 </resources>
