@@ -118,6 +118,13 @@ public class LoopbackApplication extends Application {
             case 5: //REMOTE_SUBMIX (JAVA ONLY)
                 mappedSource = MediaRecorder.AudioSource.REMOTE_SUBMIX;
                 break;
+            case 6: //UNPROCESSED
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+                    mappedSource = 9 /*MediaRecorder.AudioSource.UNPROCESSED*/;
+                } else {
+                    mappedSource = MediaRecorder.AudioSource.DEFAULT;
+                }
+                break;
             }
         } else if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE) {
             //taken form OpenSLES_AndroidConfiguration.h
@@ -137,6 +144,16 @@ public class LoopbackApplication extends Application {
                 break;
             case 4: //VOICE_COMMUNICATION
                 mappedSource = 0x04; //SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION
+                break;
+            case 5: //REMOTE_SUBMIX (JAVA ONLY)
+                mappedSource = 0x00; //SL_ANDROID_RECORDING_PRESET_NONE;
+                break;
+            case 6: //UNPROCESSED
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+                    mappedSource = 0x05; //SL_ANDROID_RECORDING_PRESET_UNPROCESSED;
+                } else {
+                    mappedSource = 0x00; //SL_ANDROID_RECORDING_PRESET_NONE
+                }
                 break;
             }
         }

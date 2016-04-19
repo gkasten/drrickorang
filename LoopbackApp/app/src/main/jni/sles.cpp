@@ -84,10 +84,9 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
     if (pSles != NULL) {
         collectRecorderBufferPeriod(pSles);
 
-        //__android_log_print(ANDROID_LOG_INFO, "sles_jni", "in the recordercallback");
+        //__android_log_print(ANDROID_LOG_INFO, "sles_jni", "in recorderCallback");
         SLresult result;
 
-        pthread_mutex_lock(&(pSles->mutex));
         //ee  SLES_PRINTF("<R");
 
         // We should only be called when a recording buffer is done
@@ -152,7 +151,6 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
 
 
       //ee  SLES_PRINTF("r>");
-        pthread_mutex_unlock(&(pSles->mutex));
 
     } //pSles not null
 }
@@ -300,7 +298,6 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         collectPlayerBufferPeriod(pSles);
         SLresult result;
 
-        pthread_mutex_lock(&(pSles->mutex));
         //ee  SLES_PRINTF("<P");
 
         // Get the buffer that just finished playing
@@ -387,7 +384,6 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         pSles->txBuffers[pSles->txRear] = buffer;
         pSles->txRear = txRearNext;
 
-        pthread_mutex_unlock(&(pSles->mutex));
     } //pSles not null
 }
 

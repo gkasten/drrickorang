@@ -48,7 +48,8 @@
         <item>CAMCORDER</item>
         <item>VOICE_RECOGNITION</item>
         <item>VOICE_COMMUNICATION</item>
-        <item>REMOTE_SUBMIX_java_only</item>
+        <item>REMOTE_SUBMIX (Java only)</item>
+        <item>UNPROCESSED (N or later)</item>
     </string-array>
 
     <string name="labelInfo">Info...</string>

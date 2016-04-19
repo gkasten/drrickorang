@@ -202,7 +202,7 @@ public class CaptureHolder {
         private int mIndexToPlace;
 
         /**
-         * Create new thread with capture state sturct for captured systrace, bugreport and wav
+         * Create new thread with capture state struct for captured systrace, bugreport and wav
          **/
         public CaptureThread(CapturedState cs, int indexToPlace) {
             mNewCapturedState = cs;

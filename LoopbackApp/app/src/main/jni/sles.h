@@ -74,8 +74,6 @@ typedef struct {
     SLAndroidSimpleBufferQueueItf recorderBufferQueue;
     SLBufferQueueItf playerBufferQueue;
 
-    pthread_mutex_t mutex;// = PTHREAD_MUTEX_INITIALIZER;
-
     //other things that belong here
     SLObjectItf playerObject;
     SLObjectItf recorderObject;
@@ -136,7 +134,7 @@ int slesDestroy(sles_data ** ppSles);
 int slesFull(sles_data *pSles);
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
-                     int testType, double frequency1, char* qbyteBufferPtr, int byteBufferLength,
+                     int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
                      short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
                      const struct JNIInvokeInterface* *jvm);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
