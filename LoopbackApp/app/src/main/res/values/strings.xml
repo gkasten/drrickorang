@@ -52,7 +52,7 @@
         <item>UNPROCESSED (N or later)</item>
     </string-array>
 
-    <string name="labelInfo">Info...</string>
+    <string name="labelInfo">Test settings will appear here after the first test is run</string>
     <string name="labelSettings">SETTINGS</string>
     <string name="labelAbout">About</string>
     <string name="labelSamplingRate">Sampling Rate</string>

@@ -16,13 +16,17 @@
 
 package org.drrickorang.loopback;
 
+import android.os.Bundle;
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import java.util.Iterator;
 
 /**
  * Maintains and returns pairs of callback timestamps (in milliseconds since beginning of test) and
  * lengths (milliseconds between a callback and the previous callback).
  */
-public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferCallback> {
+public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferCallback>, Parcelable {
     private final int[] mTimeStamps;
     private final short[] mCallbackDurations;
     private final short mExpectedBufferPeriod;
@@ -115,6 +119,42 @@ public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferC
             }
         };
     }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        Bundle out = new Bundle();
+        out.putIntArray("mTimeStamps", mTimeStamps);
+        out.putShortArray("mCallbackDurations", mCallbackDurations);
+        out.putShort("mExpectedBufferPeriod", mExpectedBufferPeriod);
+        out.putBoolean("mExceededCapacity", mExceededCapacity);
+        out.putInt("mIndex", mIndex);
+        dest.writeBundle(out);
+    }
+
+    private BufferCallbackTimes(Parcel source) {
+        Bundle in = source.readBundle(getClass().getClassLoader());
+        mTimeStamps = in.getIntArray("mTimeStamps");
+        mCallbackDurations = in.getShortArray("mCallbackDurations");
+        mExpectedBufferPeriod = in.getShort("mExpectedBufferPeriod");
+        mExceededCapacity = in.getBoolean("mExceededCapacity");
+        mIndex = in.getInt("mIndex");
+    }
+
+    public static final Parcelable.Creator<BufferCallbackTimes> CREATOR
+             = new Parcelable.Creator<BufferCallbackTimes>() {
+         public BufferCallbackTimes createFromParcel(Parcel in) {
+             return new BufferCallbackTimes(in);
+         }
+
+         public BufferCallbackTimes[] newArray(int size) {
+             return new BufferCallbackTimes[size];
+         }
+     };
 
     /** Wrapper for iteration over timestamp and length pairs */
     public class BufferCallback {

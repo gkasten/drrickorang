@@ -18,6 +18,9 @@ package org.drrickorang.loopback;
 
 import java.util.Arrays;
 
+import android.os.Bundle;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 
@@ -27,7 +30,7 @@ import android.util.Log;
  */
 
 //TODO for native mode, should use a scale more accurate than the current 1ms
-public class BufferPeriod {
+public class BufferPeriod implements Parcelable {
     private static final String TAG = "BufferPeriod";
 
     private long mStartTimeNs = 0;  // first time collectBufferPeriod() is called
@@ -41,6 +44,10 @@ public class BufferPeriod {
     private int[] mBufferPeriod = new int[range];
     private BufferCallbackTimes mCallbackTimes;
     private CaptureHolder mCaptureHolder;
+
+    public BufferPeriod() {
+        // Default constructor for when no data will be restored
+    }
 
     /**
      * For player, this function is called before every AudioTrack.write().
@@ -116,6 +123,40 @@ public class BufferPeriod {
     public BufferCallbackTimes getCallbackTimes(){
         return mCallbackTimes;
     }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    // Only save values which represent the results. Any ongoing timing would not give useful
+    // results after a save/restore.
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        Bundle out = new Bundle();
+        out.putInt("mMaxBufferPeriod", mMaxBufferPeriod);
+        out.putIntArray("mBufferPeriod", mBufferPeriod);
+        out.putParcelable("mCallbackTimes", mCallbackTimes);
+        dest.writeBundle(out);
+    }
+
+    private BufferPeriod(Parcel source) {
+        Bundle in = source.readBundle(getClass().getClassLoader());
+        mMaxBufferPeriod = in.getInt("mMaxBufferPeriod");
+        mBufferPeriod = in.getIntArray("mBufferPeriod");
+        mCallbackTimes = in.getParcelable("mCallbackTimes");
+    }
+
+    public static final Parcelable.Creator<BufferPeriod> CREATOR
+             = new Parcelable.Creator<BufferPeriod>() {
+         public BufferPeriod createFromParcel(Parcel in) {
+             return new BufferPeriod(in);
+         }
+
+         public BufferPeriod[] newArray(int size) {
+             return new BufferPeriod[size];
+         }
+     };
 
     private static void log(String msg) {
         Log.v(TAG, msg);

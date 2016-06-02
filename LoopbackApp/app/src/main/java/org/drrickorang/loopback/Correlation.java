@@ -16,6 +16,9 @@
 
 package org.drrickorang.loopback;
 
+import android.os.Bundle;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 
@@ -23,7 +26,7 @@ import android.util.Log;
  * This class is used to automatically estimate latency and its confidence.
  */
 
-public class Correlation {
+public class Correlation implements Parcelable {
     private static final String TAG = "Correlation";
 
     private int       mBlockSize = 4096;
@@ -39,6 +42,9 @@ public class Correlation {
 
     private boolean mDataIsValid = false; // Used to mark computed latency information is available
 
+    public Correlation() {
+        // Default constructor for when no data will be restored
+    }
 
     public void init(int blockSize, int samplingRate) {
         mBlockSize = blockSize;
@@ -179,6 +185,45 @@ public class Correlation {
         return status;
     }
 
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    // Store the results before this object is destroyed
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        Bundle bundle = new Bundle();
+        bundle.putBoolean("mDataIsValid", mDataIsValid);
+        if(mDataIsValid) {
+            bundle.putDouble("mEstimatedLatencySamples", mEstimatedLatencySamples);
+            bundle.putDouble("mEstimatedLatencyMs", mEstimatedLatencyMs);
+            bundle.putDouble("mEstimatedLatencyConfidence", mEstimatedLatencyConfidence);
+        }
+        dest.writeBundle(bundle);
+    }
+
+    // Restore the results which were previously calculated
+    private Correlation(Parcel in) {
+        Bundle bundle = in.readBundle(getClass().getClassLoader());
+        mDataIsValid = bundle.getBoolean("mDataIsValid");
+        if(mDataIsValid) {
+            mEstimatedLatencySamples    = bundle.getDouble("mEstimatedLatencySamples");
+            mEstimatedLatencyMs         = bundle.getDouble("mEstimatedLatencyMs");
+            mEstimatedLatencyConfidence = bundle.getDouble("mEstimatedLatencyConfidence");
+        }
+    }
+
+    public static final Parcelable.Creator<Correlation> CREATOR
+            = new Parcelable.Creator<Correlation>() {
+        public Correlation createFromParcel(Parcel in) {
+            return new Correlation(in);
+        }
+
+        public Correlation[] newArray(int size) {
+            return new Correlation[size];
+        }
+    };
 
     private static void log(String msg) {
         Log.v(TAG, msg);

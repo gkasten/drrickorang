@@ -299,7 +299,6 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         case R.id.spinnerChannelIndex:
             int channelIndex = mSpinnerChannelIndex.getSelectedItemPosition() - 1;
             getApp().setChannelIndex(channelIndex);
-            getApp().computeDefaults();
             setSettingsHaveChanged();
             log("channelIndex:" + channelIndex);
             refresh();

@@ -23,12 +23,15 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Paint.Style;
+import android.os.Vibrator;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
+import android.widget.Scroller;
 
 
 /**
@@ -54,9 +57,11 @@ public class WavePlotView extends View  {
     private GestureDetector        mDetector;
     private ScaleGestureDetector   mSGDetector;
     private MyScaleGestureListener mSGDListener;
+    private Scroller mScroller;
 
     private int mWidth;
     private int mHeight;
+    private boolean mHasDimensions;
 
     private Paint mMyPaint;
     private Paint mPaintZoomBox;
@@ -66,12 +71,23 @@ public class WavePlotView extends View  {
     private Paint mPaintGrid;
     private Paint mPaintGridText;
 
+    // Default values used when we don't have a valid waveform to display.
+    // This saves us having to add multiple special cases to handle null waveforms.
+    private int mDefaultSampleRate = 48000; // chosen because it is common in real world devices
+    private double[] mDefaultDataVector = new double[mDefaultSampleRate]; // 1 second of fake audio
+
     public WavePlotView(Context context, AttributeSet attrs) {
         super(context, attrs);
         mSGDListener = new MyScaleGestureListener();
         mDetector = new GestureDetector(context, new MyGestureListener());
         mSGDetector = new ScaleGestureDetector(context, mSGDListener);
+        mScroller = new Scroller(context, new LinearInterpolator(), true);
         initPaints();
+
+        // Initialize the value array to 1s silence
+        mSamplingRate = mDefaultSampleRate;
+        mBigDataArray = new double[mSamplingRate];
+        Arrays.fill(mDefaultDataVector, 0);
     }
 
 
@@ -122,13 +138,6 @@ public class WavePlotView extends View  {
         mPaintGridText.setColor(COLOR_GRID_TEXT); //BLACKgray
         mPaintGridText.setTextSize(textSize);
     }
-
-
-    /** Must call this function to set mSamplingRate before plotting the wave. */
-    public void setSamplingRate(int samplingRate) {
-        mSamplingRate = samplingRate;
-    }
-
 
     public double getZoom() {
         return mZoomFactorX;
@@ -226,7 +235,9 @@ public class WavePlotView extends View  {
         mWidth = w;
         mHeight = h;
         log("New w: " + mWidth + " h: " + mHeight);
+        mHasDimensions = true;
         initView();
+        refreshView();
     }
 
 
@@ -236,12 +247,8 @@ public class WavePlotView extends View  {
         mInsetSize = mWidth / 5;
         mValuesArray = new double[mArraySize];
         mValuesArray2 = new double[mArraySize];
-        int i;
-
-        for (i = 0; i < mArraySize; i++) {
-            mValuesArray[i] = 0;
-            mValuesArray2[i] = 0;
-        }
+        Arrays.fill(mValuesArray, 0);
+        Arrays.fill(mValuesArray2, 0);
 
         //inset
         mInsetArray = new double[mInsetSize];
@@ -254,7 +261,6 @@ public class WavePlotView extends View  {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        boolean showZoomBox = mSGDListener.mIsScaling;
         boolean showGrid = true;
         boolean showInset = true;
 
@@ -338,32 +344,22 @@ public class WavePlotView extends View  {
         myPath.moveTo(0, h / 2); //start
 
         if (mBigDataArray != null) {
-            for (i = 0; i < mArraySize; i++) {
-                double value = mValuesArray[i];
-                double valueScaled = (valueMax - value) / valueRange;
-                float newX = i * deltaX;
-                float newY = (float) (valueScaled * h);
-                myPath.lineTo(newX, newY);
+            if (getZoom() >= 2) {
+                for (i = 0; i < mArraySize; ++i) {
+                    float top = (float) ((valueMax - mValuesArray[i]) / valueRange) * h;
+                    float bottom = (float) ((valueMax - mValuesArray2[i]) / valueRange) * h + 1;
+                    float left = i * deltaX;
+                    canvas.drawRect(left, top, left + deltaX, bottom, mMyPaint);
+                }
+            } else {
+                for (i = 0; i < (mArraySize - 1); ++i) {
+                    float first = (float) ((valueMax - mValuesArray[i]) / valueRange) * h;
+                    float second = (float) ((valueMax - mValuesArray[i + 1]) / valueRange) * h;
+                    float left = i * deltaX;
+                    canvas.drawLine(left, first, left + deltaX, second, mMyPaint);
+                }
             }
 
-            //bottom
-            for (i = mArraySize - 1; i >= 0; i--) {
-                double value = mValuesArray2[i];
-                double valueScaled = (valueMax - value) / valueRange;
-                float newX = i * deltaX;
-                float newY = (float) (valueScaled * h);
-                myPath.lineTo(newX, newY);
-            }
-            //close
-            myPath.close();
-            canvas.drawPath(myPath, mMyPaint);
-
-
-            if (showZoomBox) {
-                float x1 = (float) mSGDListener.mX1;
-                float x2 = (float) mSGDListener.mX2;
-                canvas.drawRect(x1, 0, x2, h, mPaintZoomBox);
-            }
 
             if (showInset) {
                 float iW = (float) (w * 0.2);
@@ -376,30 +372,13 @@ public class WavePlotView extends View  {
                 //paintInset
                 float iDeltaX = (float) iW / mInsetSize;
 
-                //top
-                Path iPath = new Path();
-                iPath.moveTo(iX, iY + (iH / 2)); //start
-
-                for (i = 0; i < mInsetSize; i++) {
-                    double value = mInsetArray[i];
-                    double valueScaled = (valueMax - value) / valueRange;
-                    float newX = iX + (i * iDeltaX);
-                    float newY = iY + (float) (valueScaled * iH);
-                    iPath.lineTo(newX, newY);
+                for (i = 0; i < mInsetSize; ++i) {
+                    float top = iY + (float) ((valueMax - mInsetArray[i]) / valueRange) * iH;
+                    float bottom = iY +
+                            (float) ((valueMax - mInsetArray2[i]) / valueRange) * iH + 1;
+                    float left = iX + i * iDeltaX;
+                    canvas.drawRect(left, top, left + deltaX, bottom, mPaintInset);
                 }
-
-                //bottom
-                for (i = mInsetSize - 1; i >= 0; i--) {
-                    double value = mInsetArray2[i];
-                    double valueScaled = (valueMax - value) / valueRange;
-                    float newX = iX + i * iDeltaX;
-                    float newY = iY + (float) (valueScaled * iH);
-                    iPath.lineTo(newX, newY);
-                }
-
-                //close
-                iPath.close();
-                canvas.drawPath(iPath, mPaintInset);
 
                 if (mBigDataArray != null) {
                     //paint current region of zoom
@@ -416,6 +395,10 @@ public class WavePlotView extends View  {
                 }
             }
         }
+        if (mScroller.computeScrollOffset()) {
+            setOffset(mScroller.getCurrX(), false);
+            refreshGraph();
+        }
     }
 
 
@@ -424,6 +407,13 @@ public class WavePlotView extends View  {
         Arrays.fill(mValuesArray2, 0);
     }
 
+    void refreshView() {
+        double maxZoom = getMaxZoomOut();
+        setZoom(maxZoom);
+        setOffset(0, false);
+        computeInset();
+        refreshGraph();
+    }
 
     void computeInset() {
         if (mBigDataArray != null) {
@@ -529,20 +519,21 @@ public class WavePlotView extends View  {
     }
 
 
-    void setData(double [] dataVector) {
-        mBigDataArray = dataVector;
-        double maxZoom = getMaxZoomOut();
-        setZoom(maxZoom);
-        setOffset(0, false);
-        computeInset();
-        refreshGraph();
-    }
+    void setData(double[] dataVector, int sampleRate) {
+        if (sampleRate < 1)
+            throw new IllegalArgumentException("sampleRate must be a positive integer");
 
+        mSamplingRate = sampleRate;
+        mBigDataArray = (dataVector != null ? dataVector : mDefaultDataVector);
+
+        if (mHasDimensions) { // only refresh the view if it has been initialized already
+            refreshView();
+        }
+    }
 
     void redraw() {
         invalidate();
     }
-
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -552,14 +543,17 @@ public class WavePlotView extends View  {
         return true;
     }
 
-
     class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
         private static final String DEBUG_TAG = "MyGestureListener";
-
+        private boolean mInDrag = false;
 
         @Override
         public boolean onDown(MotionEvent event) {
             Log.d(DEBUG_TAG, "onDown: " + event.toString() + " " + TAG);
+            if(!mScroller.isFinished()) {
+                mScroller.forceFinished(true);
+                refreshGraph();
+            }
             return true;
         }
 
@@ -569,109 +563,67 @@ public class WavePlotView extends View  {
                                float velocityX, float velocityY) {
             Log.d(DEBUG_TAG, "onFling: VelocityX: " + velocityX + "  velocityY:  " + velocityY);
 
-            //velocityX positive left to right
-            // negative: right to left
-            //double offset = getZoom()
-
-            double samplesPerWindow = mArraySize * getZoom();
-            int maxPixelsPerWindow = 8000;
-            double offsetFactor = -(double) (velocityX / maxPixelsPerWindow);
-            double offset = (samplesPerWindow * offsetFactor / 3.0);
-            Log.d(DEBUG_TAG, " VELOCITY: " + velocityX + " samples/window = " + samplesPerWindow +
-                    " offsetFactor = " + offsetFactor + "  offset: " + offset);
-
-            setOffset((int) offset, true);
+            mScroller.fling(mCurrentOffset, 0,
+                    (int) (-velocityX * getZoom()),
+                    0, 0, mBigDataArray.length, 0, 0);
             refreshGraph();
             return true;
         }
 
+
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            setOffset((int) (distanceX * getZoom()), true);
+            refreshGraph();
+            return super.onScroll(e1, e2, distanceX, distanceY);
+        }
 
         @Override
         public boolean onDoubleTap(MotionEvent event) {
             Log.d(DEBUG_TAG, "onDoubleTap: " + event.toString());
 
-            setZoom(100000);
-            setOffset(0, false);
+            int tappedSample = (int) (event.getX() * getZoom());
+            setZoom(getZoom() / 2);
+            setOffset(tappedSample / 2, true);
+
             refreshGraph();
             return true;
         }
-    }
 
+        @Override
+        public void onLongPress(MotionEvent e) {
+            Vibrator vibe = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibe.hasVibrator()) {
+                vibe.vibrate(20);
+            }
+            setZoom(getMaxZoomOut());
+            setOffset(0, false);
+            refreshGraph();
+        }
+    }
 
     private class MyScaleGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
         private static final String DEBUG_TAG = "MyScaleGestureListener";
-        public boolean mIsScaling = false;
-        public double mX1 = 0;
-        public double mX2 = 0;
+        int focusSample = 0;
 
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {
-            mIsScaling = true;
+            focusSample = (int) (detector.getFocusX() * getZoom()) + mCurrentOffset;
             return super.onScaleBegin(detector);
         }
 
-
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-            mIsScaling = false;
-            //now zoom
-            {
-                int w = getWidth();
-                //int h = getHeight();
-
-                //double currentSpan = detector.getCurrentSpan();
-                double currentSpanX = detector.getCurrentSpanX();
-                //double currentSpanY = detector.getCurrentSpanY();
-                double focusX = detector.getFocusX();
-                //double focusY = detector.getFocusY();
-                //double scaleFactor = detector.getScaleFactor();
-
-                //estimated X1, X2
-                double x1 = focusX - (currentSpanX / 2);
-                double x2 = focusX + (currentSpanX / 2);
-                //double x1clip = x1 < 0 ? 0 : (x1 > w ? w : x1);
-                //double x2clip = x2 < 0 ? 0 : (x2 > w ? w : x2);
-
-                //int originalOffset = getOffset();
-                double windowSamplesOriginal = getWindowSamples(); //samples in current window
-                double currentZoom = getZoom();
-                double windowFactor = Math.abs(mX2 - mX1) / w;
-
-                double newZoom = currentZoom * windowFactor;
-                setZoom(newZoom);
-                int newOffset = (int) (windowSamplesOriginal * mX1 / w);
-                setOffset(newOffset, true); //relative
-
-            }
-            refreshGraph();
-        }
-
-
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
+            setZoom(getZoom() / detector.getScaleFactor());
 
-            int w = getWidth();
-            //int h = getHeight();
-            //double currentSpan = detector.getCurrentSpan();
-            double currentSpanX = detector.getCurrentSpanX();
-            //double currentSpanY = detector.getCurrentSpanY();
-            double focusX = detector.getFocusX();
-            //double focusY = detector.getFocusY();
-            //double scaleFactor = detector.getScaleFactor();
-
-            //estimated X1, X2
-            double x1 = focusX - (currentSpanX / 2);
-            double x2 = focusX + (currentSpanX / 2);
-            double x1clip = x1 < 0 ? 0 : (x1 > w ? w : x1);
-            double x2clip = x2 < 0 ? 0 : (x2 > w ? w : x2);
-            mX1 = x1clip;
-            mX2 = x2clip;
+            int newFocusSample = (int) (detector.getFocusX() * getZoom()) + mCurrentOffset;
+            int sampleDelta = (int) (focusSample - newFocusSample);
+            setOffset(sampleDelta, true);
             refreshGraph();
             return true;
         }
     }
-
 
     private static void log(String msg) {
         Log.v(TAG, msg);
