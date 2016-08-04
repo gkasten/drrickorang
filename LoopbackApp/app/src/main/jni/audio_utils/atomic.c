@@ -17,6 +17,7 @@
 #include "atomic.h"
 
 #include <stdatomic.h>
+#include <stdbool.h>
 
 int32_t android_atomic_acquire_load(volatile const int32_t* addr) {
     volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
@@ -26,4 +27,14 @@ int32_t android_atomic_acquire_load(volatile const int32_t* addr) {
 void android_atomic_release_store(int32_t value, volatile int32_t* addr) {
     volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
     atomic_store_explicit(a, value, memory_order_release);
+}
+
+int32_t android_atomic_exchange(int32_t value, volatile const int32_t* addr) {
+    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
+    return atomic_exchange(a, value);
+}
+
+bool android_atomic_compare_exchange(int32_t* expect, int32_t desire, volatile const int32_t* addr) {
+    volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
+    return atomic_compare_exchange_weak(a, expect, desire);
 }

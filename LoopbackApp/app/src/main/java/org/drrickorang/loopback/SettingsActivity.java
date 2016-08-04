@@ -23,12 +23,12 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
-import android.widget.ArrayAdapter;
-import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.AdapterView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -53,7 +53,9 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
     private SettingsPicker mWavePlotDurationUI;
     private SettingsPicker mLoadThreadUI;
     private SettingsPicker mNumCapturesUI;
+    private SettingsPicker mIgnoreFirstFramesUI;
     private ToggleButton   mSystraceToggleButton;
+    private ToggleButton   mBugreportToggleButton;
     private ToggleButton   mWavCaptureToggleButton;
 
     ArrayAdapter<CharSequence> mAdapterSamplingRate;
@@ -220,9 +222,28 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         mWavCaptureToggleButton.setChecked(getApp().isCaptureWavSnippetsEnabled());
         mWavCaptureToggleButton.setOnCheckedChangeListener(this);
 
+        mBugreportToggleButton = (ToggleButton) findViewById(R.id.BugreportEnabledToggle);
+        mBugreportToggleButton.setChecked(getApp().isCaptureBugreportEnabled());
+        mBugreportToggleButton.setOnCheckedChangeListener(this);
+
         mSystraceToggleButton = (ToggleButton) findViewById(R.id.SystraceEnabledToggle);
         mSystraceToggleButton.setChecked(getApp().isCaptureSysTraceEnabled());
         mSystraceToggleButton.setOnCheckedChangeListener(this);
+
+        // Settings Picker for number of frames to ignore at the beginning
+        mIgnoreFirstFramesUI = (SettingsPicker) findViewById(R.id.ignoreFirstFramesSettingPicker);
+        mIgnoreFirstFramesUI.setMinMaxDefault(Constant.MIN_IGNORE_FIRST_FRAMES,
+                Constant.MAX_IGNORE_FIRST_FRAMES, getApp().getIgnoreFirstFrames());
+        mIgnoreFirstFramesUI.setTitle(getResources().getString(R.string.labelIgnoreFirstFrames,
+                Constant.MAX_IGNORE_FIRST_FRAMES));
+        mIgnoreFirstFramesUI.setSettingsChangeListener(new SettingsPicker.SettingChangeListener() {
+            @Override
+            public void settingChanged(int frames) {
+                log("new number of first frames to ignore: " + frames);
+                getApp().setIgnoreFirstFrames(frames);
+                setSettingsHaveChanged();
+            }
+        });
 
         refresh();
     }
@@ -266,7 +287,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             mSpinnerChannelIndex.setEnabled(false);
         }
 
-        mNumCapturesUI.setEnabled(getApp().isCaptureSysTraceEnabled() ||
+        mNumCapturesUI.setEnabled(getApp().isCaptureEnabled() ||
                 getApp().isCaptureWavSnippetsEnabled());
 
         String info = getApp().getSystemInfo();
@@ -319,8 +340,10 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             getApp().setCaptureWavsEnabled(isChecked);
         } else if (buttonView.getId() == mSystraceToggleButton.getId()) {
             getApp().setCaptureSysTraceEnabled(isChecked);
+        } else if (buttonView.getId() == mBugreportToggleButton.getId()) {
+            getApp().setCaptureBugreportEnabled(isChecked);
         }
-        mNumCapturesUI.setEnabled(getApp().isCaptureSysTraceEnabled() ||
+        mNumCapturesUI.setEnabled(getApp().isCaptureEnabled() ||
                 getApp().isCaptureWavSnippetsEnabled());
     }
 

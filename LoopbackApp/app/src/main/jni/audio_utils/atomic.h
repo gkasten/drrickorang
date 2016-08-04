@@ -18,6 +18,7 @@
 #define ANDROID_AUDIO_ATOMIC_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,6 +26,10 @@ extern "C" {
 
 int32_t android_atomic_acquire_load(volatile const int32_t* addr);
 void android_atomic_release_store(int32_t value, volatile int32_t* addr);
+
+// FIXME: use standard atomic library instead of these functions
+int32_t android_atomic_exchange(int32_t value, volatile const int32_t* addr);
+bool android_atomic_compare_exchange(int32_t* expect, int32_t desire, volatile const int32_t* addr);
 
 #ifdef __cplusplus
 }

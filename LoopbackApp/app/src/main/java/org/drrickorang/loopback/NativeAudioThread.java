@@ -55,6 +55,7 @@ public class NativeAudioThread extends Thread {
     private int mMinPlayerBufferSizeInBytes = 0;
     private int mMinRecorderBuffSizeInBytes = 0; // currently not used
     private int mMicSource;
+    private int mIgnoreFirstFrames;
 
     private boolean mIsRequestStop = false;
     private Handler mMessageHandler;
@@ -64,8 +65,10 @@ public class NativeAudioThread extends Thread {
     // for buffer test
     private int[]   mRecorderBufferPeriod;
     private int     mRecorderMaxBufferPeriod;
+    private double  mRecorderStdDevBufferPeriod;
     private int[]   mPlayerBufferPeriod;
     private int     mPlayerMaxBufferPeriod;
+    private double  mPlayerStdDevBufferPeriod;
     private BufferCallbackTimes mPlayerCallbackTimes;
     private BufferCallbackTimes mRecorderCallbackTimes;
     private int     mBufferTestWavePlotDurationInSeconds;
@@ -84,7 +87,8 @@ public class NativeAudioThread extends Thread {
 
     public NativeAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
                              int micSource, int testType, int bufferTestDurationInSeconds,
-                             int bufferTestWavePlotDurationInSeconds, CaptureHolder captureHolder) {
+                             int bufferTestWavePlotDurationInSeconds, int ignoreFirstFrames,
+                             CaptureHolder captureHolder) {
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
@@ -92,6 +96,7 @@ public class NativeAudioThread extends Thread {
         mTestType = testType;
         mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
+        mIgnoreFirstFrames = ignoreFirstFrames;
         mCaptureHolder = captureHolder;
         setName("Loopback_NativeAudio");
     }
@@ -113,17 +118,21 @@ public class NativeAudioThread extends Thread {
     public native long  slesInit(int samplingRate, int frameCount, int micSource,
                                  int testType, double frequency1, ByteBuffer byteBuffer,
                                  short[] sincTone, int maxRecordedLateCallbacks,
-                                 CaptureHolder captureHolder);
+                                 int ignoreFirstFrames);
     public native int   slesProcessNext(long sles_data, double[] samples, long offset);
     public native int   slesDestroy(long sles_data);
 
     // to get buffer period data
-    public native int[] slesGetRecorderBufferPeriod(long sles_data);
-    public native int   slesGetRecorderMaxBufferPeriod(long sles_data);
-    public native int[] slesGetPlayerBufferPeriod(long sles_data);
-    public native int   slesGetPlayerMaxBufferPeriod(long sles_data);
+    public native int[]  slesGetRecorderBufferPeriod(long sles_data);
+    public native int    slesGetRecorderMaxBufferPeriod(long sles_data);
+    public native double slesGetRecorderVarianceBufferPeriod(long sles_data);
+    public native int[]  slesGetPlayerBufferPeriod(long sles_data);
+    public native int    slesGetPlayerMaxBufferPeriod(long sles_data);
+    public native double slesGetPlayerVarianceBufferPeriod(long sles_data);
     public native BufferCallbackTimes slesGetPlayerCallbackTimeStamps(long sles_data);
     public native BufferCallbackTimes slesGetRecorderCallbackTimeStamps(long sles_data);
+
+    public native int slesGetCaptureRank(long sles_data);
 
 
     public void run() {
@@ -167,7 +176,7 @@ public class NativeAudioThread extends Thread {
                 mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME, mMicSource, mTestType,
                 mFrequency1, mPipeByteBuffer.getByteBuffer(), loopbackTone,
                 mBufferTestDurationInSeconds * Constant.MAX_RECORDED_LATE_CALLBACKS_PER_SECOND,
-                mCaptureHolder);
+                mIgnoreFirstFrames);
         log(String.format("sles_data = 0x%X", sles_data));
 
         if (sles_data == 0) {
@@ -228,6 +237,11 @@ public class NativeAudioThread extends Thread {
                     if (mIsRequestStop) {
                         break;
                     } else {
+                        int rank = slesGetCaptureRank(sles_data);
+                        if (rank > 0) {
+                            //log("Late callback detected");
+                            mCaptureHolder.captureState(rank);
+                        }
                         try {
                             final int setUpTime = 100;
                             sleep(setUpTime); //just to let it start properly
@@ -246,8 +260,10 @@ public class NativeAudioThread extends Thread {
             // collect buffer period data
             mRecorderBufferPeriod = slesGetRecorderBufferPeriod(sles_data);
             mRecorderMaxBufferPeriod = slesGetRecorderMaxBufferPeriod(sles_data);
+            mRecorderStdDevBufferPeriod = Math.sqrt(slesGetRecorderVarianceBufferPeriod(sles_data));
             mPlayerBufferPeriod = slesGetPlayerBufferPeriod(sles_data);
             mPlayerMaxBufferPeriod = slesGetPlayerMaxBufferPeriod(sles_data);
+            mPlayerStdDevBufferPeriod = Math.sqrt(slesGetPlayerVarianceBufferPeriod(sles_data));
 
             mPlayerCallbackTimes = slesGetPlayerCallbackTimeStamps(sles_data);
             mRecorderCallbackTimes = slesGetRecorderCallbackTimeStamps(sles_data);
@@ -427,21 +443,25 @@ public class NativeAudioThread extends Thread {
         return mRecorderBufferPeriod;
     }
 
-
     public int getRecorderMaxBufferPeriod() {
         return mRecorderMaxBufferPeriod;
     }
 
+    public double getRecorderStdDevBufferPeriod() {
+        return mRecorderStdDevBufferPeriod;
+    }
 
     public int[] getPlayerBufferPeriod() {
         return mPlayerBufferPeriod;
     }
 
-
     public int getPlayerMaxBufferPeriod() {
         return mPlayerMaxBufferPeriod;
     }
 
+    public double getPlayerStdDevBufferPeriod() {
+        return mPlayerStdDevBufferPeriod;
+    }
 
     public int[] getNativeAllGlitches() {
         return mAllGlitches;

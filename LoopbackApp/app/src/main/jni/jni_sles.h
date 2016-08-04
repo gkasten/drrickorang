@@ -27,7 +27,7 @@ extern "C" {
 ////SLE
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
   (JNIEnv *, jobject, jint, jint, jint, jint, jdouble, jobject byteBuffer,
-       jshortArray loopbackTone, jint maxRecordedLateCallbacks, jobject captureHolder);
+   jshortArray loopbackTone, jint maxRecordedLateCallbacks, jint ignoreFirstFrames);
 
 JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesProcessNext
   (JNIEnv *, jobject, jlong, jdoubleArray, jlong);
@@ -43,11 +43,24 @@ JNIEXPORT jint JNICALL
         Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderMaxBufferPeriod
   (JNIEnv *, jobject, jlong);
 
+JNIEXPORT jdouble JNICALL
+        Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderVarianceBufferPeriod
+  (JNIEnv *, jobject, jlong);
+
 JNIEXPORT jintArray JNICALL
         Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerBufferPeriod
   (JNIEnv *, jobject, jlong);
 
-JNIEXPORT jint JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerMaxBufferPeriod
+JNIEXPORT jint JNICALL
+        Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerMaxBufferPeriod
+  (JNIEnv *, jobject, jlong);
+
+JNIEXPORT jdouble JNICALL
+        Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerVarianceBufferPeriod
+  (JNIEnv *, jobject, jlong);
+
+JNIEXPORT jint JNICALL
+        Java_org_drrickorang_loopback_NativeAudioThread_slesGetCaptureRank
   (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus

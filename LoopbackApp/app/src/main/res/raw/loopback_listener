@@ -41,19 +41,27 @@ do
         # Ensure that if more than one listener is running only one will consume signal
         > $SIGNAL_FILE
 
-        if [ $contents == $TERMINATE_SIGNAL ]
+        if [ "$contents" == $TERMINATE_SIGNAL ]
         then
             exitListener
         else
-            # write Systrace and bugreport to files
+            for filename in $contents
+            do
+                case $filename in
+                *$SYSTRACE_SUFFIX)
+                    echo "LOOPBACK LISTENER: dumping systrace to file $filename"
+                    atrace --async_dump -z -c -b $BUFFER_KB $TRACE_CATEGORIES > $filename
+                    ;;
 
-            echo "LOOPBACK LISTENER: dumping systrace to file $contents$SYSTRACE_SUFFIX"
-            atrace --async_dump -z -c -b $BUFFER_KB $TRACE_CATEGORIES > $contents$SYSTRACE_SUFFIX
+                *$BUGREPORT_SUFFIX)
+                    echo "LOOPBACK LISTENER: dumping bugreport to file $filename"
+                    bugreport | gzip > $filename
+                    ;;
 
-            echo "LOOPBACK LISTENER: dumping bugreport to file $contents$BUGREPORT_SUFFIX"
-            bugreport | gzip > $contents$BUGREPORT_SUFFIX
+                esac
+            done
 
-            echo "LOOPBACK LISTENER: Finished systrace and bugreport"
+            echo "LOOPBACK LISTENER: Finished capture"
 
             # Check for case that test has ended while capturing state and exit
             if [ -e "$SIGNAL_FILE" ] && [ -s "$SIGNAL_FILE" ] \

@@ -18,13 +18,12 @@
 #include "sles.h"
 #include "jni_sles.h"
 #include <stdio.h>
-#include <stddef.h>
 
 
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
-  (JNIEnv *env __unused, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource,
+  (JNIEnv *env, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource,
    jint testType, jdouble frequency1, jobject byteBuffer, jshortArray loopbackTone,
-   jint maxRecordedLateCallbacks, jobject captureHolder) {
+   jint maxRecordedLateCallbacks, jint ignoreFirstFrames) {
 
     sles_data * pSles = NULL;
 
@@ -33,17 +32,9 @@ JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
 
     short* loopbackToneArray = (*env)->GetShortArrayElements(env, loopbackTone, 0);
 
-    const struct JNIInvokeInterface* *jvm;
-    jint result = (*env)->GetJavaVM(env, &jvm);
-    if (result != JNI_OK){
-        jvm = NULL;
-        __android_log_print(ANDROID_LOG_INFO, "CAPTURE", "failed to get vm");
-    }
-    captureHolder = (*env)->NewGlobalRef(env,captureHolder);
-
     if (slesInit(&pSles, samplingRate, frameCount, micSource,
                  testType, frequency1, byteBufferPtr, byteBufferLength,
-                 loopbackToneArray, maxRecordedLateCallbacks, captureHolder, jvm) != SLES_FAIL) {
+                 loopbackToneArray, maxRecordedLateCallbacks, ignoreFirstFrames) != SLES_FAIL) {
         return (long) pSles;
     }
 
@@ -103,6 +94,17 @@ JNIEXPORT jint JNICALL
 }
 
 
+JNIEXPORT jdouble JNICALL
+        Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderVarianceBufferPeriod
+        (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data *pSles = (sles_data *) (size_t) sles;
+    int64_t result = slesGetRecorderVarianceBufferPeriod(pSles);
+    // variance has units ns^2 so we have to square the conversion factor
+    double scaled = (double) result / ((double) NANOS_PER_MILLI * (double) NANOS_PER_MILLI);
+    return scaled;
+}
+
+
 JNIEXPORT jintArray
 JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerBufferPeriod
   (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
@@ -124,6 +126,18 @@ JNIEXPORT jint JNICALL
 
     return playerMaxBufferPeriod;
 }
+
+
+JNIEXPORT jdouble JNICALL
+Java_org_drrickorang_loopback_NativeAudioThread_slesGetPlayerVarianceBufferPeriod
+        (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data *pSles = (sles_data *) (size_t) sles;
+    int64_t result = slesGetPlayerVarianceBufferPeriod(pSles);
+    // variance has units ns^2 so we have to square the conversion factor
+    double scaled = (double) result / ((double) NANOS_PER_MILLI * (double) NANOS_PER_MILLI);
+    return scaled;
+}
+
 
 jobject getCallbackTimes(JNIEnv *env, callbackTimeStamps *callbacks, short expectedBufferPeriod){
     jintArray timeStamps = (*env)->NewIntArray(env, callbacks->index);
@@ -152,4 +166,11 @@ JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetRecorderCallbackT
         (JNIEnv *env, jobject obj __unused, jlong sles) {
     sles_data * pSles = (sles_data*) (size_t) sles;
     return getCallbackTimes(env, &(pSles->recorderTimeStamps), pSles->expectedBufferPeriod);
+}
+
+JNIEXPORT jint
+JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesGetCaptureRank
+        (JNIEnv *env __unused, jobject obj __unused, jlong sles) {
+    sles_data * pSles = (sles_data*) (size_t) sles;
+    return slesGetCaptureRank(pSles);
 }

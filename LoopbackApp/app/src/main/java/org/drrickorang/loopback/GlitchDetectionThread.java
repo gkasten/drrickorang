@@ -16,9 +16,9 @@
 
 package org.drrickorang.loopback;
 
-import java.util.Arrays;
-
 import android.util.Log;
+
+import java.util.Arrays;
 
 
 /**
@@ -213,7 +213,7 @@ public class GlitchDetectionThread extends Thread {
                 // Glitch Detected
                 mGlitches[mGlitchesIndex] = mFFTCount;
                 mGlitchesIndex++;
-                if (mCaptureHolder.isCapturingSysTraces() || mCaptureHolder.isCapturingWavs()) {
+                if (mCaptureHolder.isCapturing()) {
                     checkGlitchConcentration();
                 }
             }

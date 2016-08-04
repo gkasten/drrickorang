@@ -136,10 +136,13 @@
     <string name="labelBufferTestWavePlotDuration">Buffer Test Wave Plot Duration (Seconds)
                                                    (Max: %1$d)</string>
     <string name="loadThreadsLabel">Number of Simulated Load Threads</string>
-    <string name="enableSystrace">Systrace and BugReport Captures During Test</string>
+    <string name="enableSystrace">Systrace Captures During Test</string>
+    <string name="enableBugreport">BugReport Captures During Test</string>
     <string name="enableWavSnippets">Wav Snippet Captures During Test</string>
     <string name="numCapturesSetting">Number of Systrace/BugReport and or Wav Snippets to Capture
     </string>
+    <string name="labelIgnoreFirstFrames">
+        Frames to ignore at the start of the latency test (Max: %1$d)</string>
 
     <string name="SaveFileDialogLabel">Save Files To:</string>
     <string name="SaveFileDialogOK">//mnt/sdcard/</string>

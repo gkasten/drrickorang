@@ -42,6 +42,20 @@ typedef struct {
     bool exceededCapacity;      // Set only if late callbacks come after array is full
 } callbackTimeStamps;
 
+typedef struct {
+    int* buffer_period;
+    struct timespec previous_time;
+    struct timespec current_time;
+    int buffer_count;
+    int max_buffer_period;
+
+    volatile int32_t captureRank;   // Set > 0 when the callback requests a systrace/bug report
+
+    int measurement_count; // number of measurements which were actually recorded
+    int64_t SDM; // sum of squares of deviations from the expected mean
+    int64_t var; // variance in nanoseconds^2
+} bufferStats;
+
 //TODO fix this
 typedef struct {
     SLuint32 rxBufCount;     // -r#
@@ -53,6 +67,7 @@ typedef struct {
     SLuint32 freeBufCount;   // calculated
     SLuint32 bufSizeInBytes; // calculated
     int injectImpulse; // -i#i
+    int ignoreFirstFrames;
 
     // Storage area for the buffer queues
     char **rxBuffers;
@@ -80,17 +95,8 @@ typedef struct {
     SLObjectItf outputmixObject;
     SLObjectItf engineObject;
 
-    int* recorder_buffer_period;
-    struct timespec recorder_previous_time;
-    struct timespec recorder_current_time;
-    int recorder_buffer_count;
-    int recorder_max_buffer_period;
-
-    int* player_buffer_period;
-    struct timespec player_previous_time;
-    struct timespec player_current_time;
-    int player_buffer_count;
-    int player_max_buffer_period;
+    bufferStats recorderBufferStats;
+    bufferStats playerBufferStats;
 
     int testType;
     double frequency1;
@@ -104,27 +110,29 @@ typedef struct {
     callbackTimeStamps recorderTimeStamps;
     callbackTimeStamps playerTimeStamps;
     short expectedBufferPeriod;
-
-    jobject captureHolder;
-    const struct JNIInvokeInterface* *jvm;
 } sles_data;
+
+#define NANOS_PER_SECOND 1000000000
+#define NANOS_PER_MILLI 1000000
+#define MILLIS_PER_SECOND 1000
+
+// how late in ms a callback must be to trigger a systrace/bugreport
+#define LATE_CALLBACK_CAPTURE_THRESHOLD 4
+#define LATE_CALLBACK_OUTLIER_THRESHOLD 1
+#define BUFFER_PERIOD_DISCARD 10
+#define BUFFER_PERIOD_DISCARD_FULL_DUPLEX_PARTNER 2
 
 enum {
     SLES_SUCCESS = 0,
     SLES_FAIL = 1,
-    NANOS_PER_MILLI = 1000000,
-    NANOS_PER_SECOND = 1000000000,
-    MILLIS_PER_SECOND = 1000,
     RANGE = 1002,
-    BUFFER_PERIOD_DISCARD = 10,
     TEST_TYPE_LATENCY = 222,
     TEST_TYPE_BUFFER_PERIOD = 223
 } SLES_STATUS_ENUM;
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-             short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
-             const struct JNIInvokeInterface* *jvm);
+             short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
 
 //note the double pointer to properly free the memory of the structure
 int slesDestroy(sles_data ** ppSles);
@@ -135,18 +143,23 @@ int slesFull(sles_data *pSles);
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
                      int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-                     short* loopbackTone, int maxRecordedLateCallbacks, jobject captureHolder,
-                     const struct JNIInvokeInterface* *jvm);
+                     short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
 int slesDestroyServer(sles_data *pSles);
 int* slesGetRecorderBufferPeriod(sles_data *pSles);
 int slesGetRecorderMaxBufferPeriod(sles_data *pSles);
+int64_t slesGetRecorderVarianceBufferPeriod(sles_data *pSles);
 int* slesGetPlayerBufferPeriod(sles_data *pSles);
 int slesGetPlayerMaxBufferPeriod(sles_data *pSles);
+int64_t slesGetPlayerVarianceBufferPeriod(sles_data *pSles);
+int slesGetCaptureRank(sles_data *pSles);
 
-void collectPlayerBufferPeriod(sles_data *pSles);
-void collectRecorderBufferPeriod(sles_data *pSles);
-void captureState(sles_data *pSles, int rank);
+void initBufferStats(bufferStats *stats);
+void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats, callbackTimeStamps *timeStamps,
+                         short expectedBufferPeriod);
+bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBufferPeriod);
+void recordTimeStamp(callbackTimeStamps *timeStamps,
+                     int64_t callbackDuration, int64_t timeStamp);
 
 ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count);
 

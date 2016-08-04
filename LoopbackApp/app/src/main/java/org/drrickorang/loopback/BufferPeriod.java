@@ -16,12 +16,12 @@
 
 package org.drrickorang.loopback;
 
-import java.util.Arrays;
-
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
+
+import java.util.Arrays;
 
 
 /**
@@ -37,9 +37,14 @@ public class BufferPeriod implements Parcelable {
     private long mPreviousTimeNs = 0;
     private long mCurrentTimeNs = 0;
 
+    private int       mMeasurements = 0;
+    private long      mVar;     // variance in nanoseconds^2
+    private long      mSDM = 0; // sum of squares of deviations from the expected mean
     private int       mMaxBufferPeriod = 0;
+
     private int       mCount = 0;
     private final int range = 1002; // store counts for 0ms to 1000ms, and for > 1000ms
+    private int       mExpectedBufferPeriod = 0;
 
     private int[] mBufferPeriod = new int[range];
     private BufferCallbackTimes mCallbackTimes;
@@ -62,8 +67,9 @@ public class BufferPeriod implements Parcelable {
             mStartTimeNs = mCurrentTimeNs;
         }
 
-        final int discard = 10; // discard the first few buffer period values
-        if (mPreviousTimeNs != 0 && mCount > discard) {
+        if (mPreviousTimeNs != 0 && mCount > Constant.BUFFER_PERIOD_DISCARD) {
+            mMeasurements++;
+
             long diffInNano = mCurrentTimeNs - mPreviousTimeNs;
             // diffInMilli is rounded up
             int diffInMilli = (int) ((diffInNano + Constant.NANOS_PER_MILLI - 1) /
@@ -86,6 +92,12 @@ public class BufferPeriod implements Parcelable {
                 log("Having negative BufferPeriod.");
             }
 
+            long delta = diffInNano - (long) mExpectedBufferPeriod * Constant.NANOS_PER_MILLI;
+            mSDM += delta * delta;
+            if (mCount > 1) {
+                mVar = mSDM / mMeasurements;
+            }
+
             mCallbackTimes.recordCallbackTime(timeStampInMilli, (short) diffInMilli);
 
             // If diagnosing specific Java thread callback behavior set a conditional here and use
@@ -102,6 +114,8 @@ public class BufferPeriod implements Parcelable {
         mCurrentTimeNs = 0;
         Arrays.fill(mBufferPeriod, 0);
         mMaxBufferPeriod = 0;
+        mMeasurements = 0;
+        mExpectedBufferPeriod = 0;
         mCount = 0;
         mCallbackTimes = null;
     }
@@ -110,10 +124,15 @@ public class BufferPeriod implements Parcelable {
                                      CaptureHolder captureHolder){
         mCallbackTimes = new BufferCallbackTimes(maxRecords, expectedBufferPeriod);
         mCaptureHolder = captureHolder;
+        mExpectedBufferPeriod = expectedBufferPeriod;
     }
 
     public int[] getBufferPeriodArray() {
         return mBufferPeriod;
+    }
+
+    public double getStdDevBufferPeriod() {
+        return Math.sqrt(mVar) / (double) Constant.NANOS_PER_MILLI;
     }
 
     public int getMaxBufferPeriod() {
@@ -136,6 +155,7 @@ public class BufferPeriod implements Parcelable {
         Bundle out = new Bundle();
         out.putInt("mMaxBufferPeriod", mMaxBufferPeriod);
         out.putIntArray("mBufferPeriod", mBufferPeriod);
+        out.putInt("mExpectedBufferPeriod", mExpectedBufferPeriod);
         out.putParcelable("mCallbackTimes", mCallbackTimes);
         dest.writeBundle(out);
     }
@@ -144,6 +164,7 @@ public class BufferPeriod implements Parcelable {
         Bundle in = source.readBundle(getClass().getClassLoader());
         mMaxBufferPeriod = in.getInt("mMaxBufferPeriod");
         mBufferPeriod = in.getIntArray("mBufferPeriod");
+        mExpectedBufferPeriod = in.getInt("mExpectedBufferPeriod");
         mCallbackTimes = in.getParcelable("mCallbackTimes");
     }
 

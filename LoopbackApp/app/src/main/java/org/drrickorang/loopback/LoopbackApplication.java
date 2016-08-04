@@ -44,10 +44,12 @@ public class LoopbackApplication extends Application {
     private int mRecorderBuffSizeInBytes = 0; // for both native and java
     private int mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA; //0:Java, 1:Native (JNI)
     private int mMicSource = 3; //maps to MediaRecorder.AudioSource.VOICE_RECOGNITION;
+    private int mIgnoreFirstFrames = 0;
     private int mBufferTestDurationInSeconds = 5;
     private int mBufferTestWavePlotDurationInSeconds = 7;
     private int mNumberOfLoadThreads = 4;
     private boolean mCaptureSysTraceEnabled = false;
+    private boolean mCaptureBugreportEnabled = false;
     private boolean mCaptureWavSnippetsEnabled = false;
     private int mNumStateCaptures = Constant.DEFAULT_NUM_CAPTURES;
 
@@ -175,6 +177,13 @@ public class LoopbackApplication extends Application {
 
     void setMicSource(int micSource) { mMicSource = micSource; }
 
+    int getIgnoreFirstFrames() {
+        return mIgnoreFirstFrames;
+    }
+
+    void setIgnoreFirstFrames(int ignoreFirstFrames) {
+        mIgnoreFirstFrames = ignoreFirstFrames;
+    }
 
     int getPlayerBufferSizeInBytes() {
         return mPlayerBufferSizeInBytes;
@@ -238,12 +247,24 @@ public class LoopbackApplication extends Application {
         mCaptureSysTraceEnabled = enabled;
     }
 
+    public void setCaptureBugreportEnabled(boolean enabled) {
+        mCaptureBugreportEnabled = enabled;
+    }
+
     public void setCaptureWavsEnabled (boolean enabled){
         mCaptureWavSnippetsEnabled = enabled;
     }
 
-    public boolean isCaptureSysTraceEnabled () {
+    public boolean isCaptureEnabled() {
+        return isCaptureSysTraceEnabled() || isCaptureBugreportEnabled();
+    }
+
+    public boolean isCaptureSysTraceEnabled() {
         return mCaptureSysTraceEnabled;
+    }
+
+    public boolean isCaptureBugreportEnabled() {
+        return mCaptureBugreportEnabled;
     }
 
     public int getNumStateCaptures() {

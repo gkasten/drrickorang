@@ -35,6 +35,7 @@ public class Constant {
 
     public static final int BYTES_PER_SHORT = 2;
     public static final int SHORTS_PER_INT = 2;
+    // FIXME Assumes 16-bit and mono, will not work for other bit depths or multi-channel.
     public static final int BYTES_PER_FRAME = 2;    // bytes per sample
 
     // prime numbers that don't overlap with FFT frequencies
@@ -75,7 +76,14 @@ public class Constant {
     public static final int MIN_NUM_CAPTURES = 1;
     public static final int MAX_NUM_CAPTURES = 100;
     public static final int DEFAULT_NUM_CAPTURES = 5;
+    public static final int MIN_IGNORE_FIRST_FRAMES = 0;
+    // impulse happens after 300 ms and shouldn't be ignored
+    public static final int MAX_IGNORE_FIRST_FRAMES = SAMPLING_RATE_MAX * 3 / 10;
+    public static final int DEFAULT_IGNORE_FIRST_FRAMES = 0;
+
 
     // Controls size of pre allocated timestamp arrays
     public static final int MAX_RECORDED_LATE_CALLBACKS_PER_SECOND = 2;
+    // Ignore first few buffer callback periods
+    public static final int BUFFER_PERIOD_DISCARD = 10;
 }

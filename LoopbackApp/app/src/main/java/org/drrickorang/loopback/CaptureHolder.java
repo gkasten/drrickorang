@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,8 +37,11 @@ public class CaptureHolder {
     public static final String STORAGE = "/sdcard/";
     public static final String DIRECTORY = STORAGE + "Loopback";
     private static final String SIGNAL_FILE = DIRECTORY + "/loopback_signal";
+    // These suffixes are used to tell the listener script what types of data to collect.
+    // They MUST match the definitions in the script file.
     private static final String SYSTRACE_SUFFIX = ".trace";
     private static final String BUGREPORT_SUFFIX = "_bugreport.txt.gz";
+
     private static final String WAV_SUFFIX = ".wav";
     private static final String TERMINATE_SIGNAL = "QUIT";
 
@@ -51,8 +55,9 @@ public class CaptureHolder {
     private final long mStartTimeMS;
     private final boolean mIsCapturingWavs;
     private final boolean mIsCapturingSystraces;
+    private final boolean mIsCapturingBugreports;
     private final int mCaptureCapacity;
-    private Thread mCaptureThread;
+    private CaptureThread mCaptureThread;
     private volatile CapturedState mCapturedStates[];
     private WaveDataRingBuffer mWaveDataBuffer;
 
@@ -61,11 +66,13 @@ public class CaptureHolder {
     private final int mSamplingRate;
 
     public CaptureHolder(int captureCapacity, String fileNamePrefix, boolean captureWavs,
-                         boolean captureSystraces, Context context, int samplingRate) {
+                         boolean captureSystraces, boolean captureBugreports, Context context,
+                         int samplingRate) {
         mCaptureCapacity = captureCapacity;
         mFileNamePrefix = fileNamePrefix;
         mIsCapturingWavs = captureWavs;
         mIsCapturingSystraces = captureSystraces;
+        mIsCapturingBugreports = captureBugreports;
         mStartTimeMS = System.currentTimeMillis();
         mCapturedStates = new CapturedState[mCaptureCapacity];
         mContext = context;
@@ -94,14 +101,15 @@ public class CaptureHolder {
      */
     public synchronized int captureState(int rank) {
 
-        if (!mIsCapturingWavs && !mIsCapturingSystraces) {
-            Log.d(TAG, "captureState: Capturing wavs or systraces not enabled");
+        if (!isCapturing()) {
+            Log.d(TAG, "captureState: Capturing state not enabled");
             return CAPTURING_DISABLED;
         }
 
         if (mCaptureThread != null && mCaptureThread.getState() != Thread.State.TERMINATED) {
             // Capture already in progress
             Log.d(TAG, "captureState: Capture thread already running");
+            mCaptureThread.updateRank(rank);
             return CAPTURE_ALREADY_IN_PROGRESS;
         }
 
@@ -113,8 +121,8 @@ public class CaptureHolder {
                 TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(timeFromTestStartMS));
         String timeString = String.format("%02dh%02dm%02ds", hours, minutes, seconds);
 
-        String fullFileNamePrefix = STORAGE + mFileNamePrefix + '_' + timeString;
-        CapturedState cs = new CapturedState(fullFileNamePrefix, timeFromTestStartMS, rank);
+        String fileNameBase = STORAGE + mFileNamePrefix + '_' + timeString;
+        CapturedState cs = new CapturedState(fileNameBase, timeFromTestStartMS, rank);
 
         int indexOfLeastInteresting = getIndexOfLeastInterestingCapture(cs);
         if (indexOfLeastInteresting == NEW_CAPTURE_IS_LEAST_INTERESTING) {
@@ -167,12 +175,8 @@ public class CaptureHolder {
         return index;
     }
 
-    public boolean isCapturingWavs() {
-        return mIsCapturingWavs;
-    }
-
-    public boolean isCapturingSysTraces() {
-        return mIsCapturingSystraces;
+    public boolean isCapturing() {
+        return mIsCapturingWavs || mIsCapturingSystraces || mIsCapturingBugreports;
     }
 
     /**
@@ -180,19 +184,19 @@ public class CaptureHolder {
      * for determining position in rolling queue
      */
     private class CapturedState {
-        public final String fileNamePrefix;
+        public final String fileNameBase;
         public final long timeFromStartOfTestMS;
-        public final int rank;
+        public int rank;
 
-        public CapturedState(String fileNamePrefix, long timeFromStartOfTestMS, int rank) {
-            this.fileNamePrefix = fileNamePrefix;
+        public CapturedState(String fileNameBase, long timeFromStartOfTestMS, int rank) {
+            this.fileNameBase = fileNameBase;
             this.timeFromStartOfTestMS = timeFromStartOfTestMS;
             this.rank = rank;
         }
 
         @Override
         public String toString() {
-            return "CapturedState { fileName:" + fileNamePrefix + ", Rank:" + rank + "}";
+            return "CapturedState { fileName:" + fileNameBase + ", Rank:" + rank + "}";
         }
     }
 
@@ -214,17 +218,22 @@ public class CaptureHolder {
         @Override
         public void run() {
 
-            // Create two empty files and write that file name prefix to signal file, signalling
-            // the listener script to write systrace and bugreport to those files
-            if (mIsCapturingSystraces) {
+            // Write names of desired captures to signal file, signalling
+            // the listener script to write systrace and/or bugreport to those files
+            if (mIsCapturingSystraces || mIsCapturingBugreports) {
                 Log.d(TAG, "CaptureThread: signaling listener to write to:" +
-                        mNewCapturedState.fileNamePrefix);
+                        mNewCapturedState.fileNameBase + "*");
                 try {
-                    new File(mNewCapturedState.fileNamePrefix + SYSTRACE_SUFFIX).createNewFile();
-                    new File(mNewCapturedState.fileNamePrefix + BUGREPORT_SUFFIX).createNewFile();
-                    OutputStream outputStream = new FileOutputStream(SIGNAL_FILE);
-                    outputStream.write(mNewCapturedState.fileNamePrefix.getBytes());
-                    outputStream.close();
+                    PrintWriter writer = new PrintWriter(SIGNAL_FILE);
+                    // mNewCapturedState.fileNameBase is the path and basename of the state files.
+                    // Each suffix is used to tell the listener script to record that type of data.
+                    if (mIsCapturingSystraces) {
+                        writer.println(mNewCapturedState.fileNameBase + SYSTRACE_SUFFIX);
+                    }
+                    if (mIsCapturingBugreports) {
+                        writer.println(mNewCapturedState.fileNameBase + BUGREPORT_SUFFIX);
+                    }
+                    writer.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -236,7 +245,7 @@ public class CaptureHolder {
                 WaveDataRingBuffer.ReadableWaveDeck deck = mWaveDataBuffer.getWaveDeck();
                 if (deck != null) {
                     AudioFileOutput audioFile = new AudioFileOutput(mContext,
-                            Uri.parse("file://mnt" + mNewCapturedState.fileNamePrefix
+                            Uri.parse("file://mnt" + mNewCapturedState.fileNameBase
                                     + WAV_SUFFIX),
                             mSamplingRate);
                     boolean success = deck.writeToFile(audioFile);
@@ -246,11 +255,11 @@ public class CaptureHolder {
 
             // Check for sys and bug finished
             // loopback listener script signals completion by deleting signal file
-            if (mIsCapturingSystraces) {
+            if (mIsCapturingSystraces || mIsCapturingBugreports) {
                 File signalFile = new File(SIGNAL_FILE);
                 while (signalFile.exists()) {
                     try {
-                        sleep(1);
+                        sleep(100);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -262,7 +271,7 @@ public class CaptureHolder {
             if (mCapturedStates[mIndexToPlace] != null) {
                 Log.d(TAG, "Deleting capture: " + mCapturedStates[mIndexToPlace]);
                 for (String suffix : suffixes) {
-                    File oldFile = new File(mCapturedStates[mIndexToPlace].fileNamePrefix + suffix);
+                    File oldFile = new File(mCapturedStates[mIndexToPlace].fileNameBase + suffix);
                     boolean deleted = oldFile.delete();
                     if (!deleted) {
                         Log.d(TAG, "Delete old capture: " + oldFile.toString() +
@@ -279,6 +288,11 @@ public class CaptureHolder {
             Log.d(TAG, log);
 
             Log.d(TAG, "Completed capture thread terminating");
+        }
+
+        // Sets the rank of the current capture to rank if it is greater than the current value
+        public synchronized void updateRank(int rank) {
+            mNewCapturedState.rank = Math.max(mNewCapturedState.rank, rank);
         }
     }
 }

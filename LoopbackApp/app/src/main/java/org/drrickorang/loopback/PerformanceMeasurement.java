@@ -107,17 +107,16 @@ public class PerformanceMeasurement {
 
     /**
      * Determine percent of Buffer Period Callbacks that occurred at the expected time
-     * Note: due to current rounding in buffer sampling callbacks occurring at 1 ms after the
-     * expected buffer period are also counted in the returned percentage
      * Returns a value between 0 and 1
      */
     public float percentBufferPeriodsAtExpected() {
         int occurrenceNearExpectedBufferPeriod = 0;
-        // indicate how many beams around mExpectedBufferPeriod do we want to add to the count
-        int numberOfBeams = 2;
-        int start = Math.max(0, mExpectedBufferPeriodMs - numberOfBeams);
-        int end = Math.min(mBufferData.length, mExpectedBufferPeriodMs + numberOfBeams);
-        for (int i = start; i < end; i++) {
+        // indicate how many buckets around mExpectedBufferPeriod do we want to add to the count
+        int acceptableOffset = 2;
+        int start = Math.max(0, mExpectedBufferPeriodMs - acceptableOffset);
+        int end = Math.min(mBufferData.length - 1, mExpectedBufferPeriodMs + acceptableOffset);
+        // include the next bucket too because the period is rounded up
+        for (int i = start; i <= end; i++) {
             occurrenceNearExpectedBufferPeriod += mBufferData[i];
         }
         return ((float) occurrenceNearExpectedBufferPeriod) / mTotalOccurrence;
