@@ -44,6 +44,7 @@ public class LoopbackApplication extends Application {
     private int mRecorderBuffSizeInBytes = 0; // for both native and java
     private int mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA; //0:Java, 1:Native (JNI)
     private int mMicSource = 3; //maps to MediaRecorder.AudioSource.VOICE_RECOGNITION;
+    private int mPerformanceMode = -1; // DEFAULT
     private int mIgnoreFirstFrames = 0;
     private int mBufferTestDurationInSeconds = 5;
     private int mBufferTestWavePlotDurationInSeconds = 7;
@@ -51,6 +52,7 @@ public class LoopbackApplication extends Application {
     private boolean mCaptureSysTraceEnabled = false;
     private boolean mCaptureBugreportEnabled = false;
     private boolean mCaptureWavSnippetsEnabled = false;
+    private boolean mSoundLevelCalibrationEnabled = false;
     private int mNumStateCaptures = Constant.DEFAULT_NUM_CAPTURES;
 
     public void setDefaults() {
@@ -129,7 +131,7 @@ public class LoopbackApplication extends Application {
                 break;
             }
         } else if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE) {
-            //taken form OpenSLES_AndroidConfiguration.h
+            // FIXME taken from OpenSLES_AndroidConfiguration.h
             switch (source) {
             default:
             case 0: //DEFAULT
@@ -151,6 +153,7 @@ public class LoopbackApplication extends Application {
                 mappedSource = 0x00; //SL_ANDROID_RECORDING_PRESET_NONE;
                 break;
             case 6: //UNPROCESSED
+                // FIXME should use >=
                 if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
                     mappedSource = 0x05; //SL_ANDROID_RECORDING_PRESET_UNPROCESSED;
                 } else {
@@ -174,8 +177,49 @@ public class LoopbackApplication extends Application {
         return name;
     }
 
-
     void setMicSource(int micSource) { mMicSource = micSource; }
+
+    int mapPerformanceMode(int performanceMode) {
+        int mappedPerformanceMode = -1;
+
+        // FIXME taken from OpenSLES_AndroidConfiguration.h
+        switch (performanceMode) {
+        case 0: // NONE
+        case 1: // LATENCY
+        case 2: // LATENCY_EFFECTS
+        case 3: // POWER_SAVING
+            // FIXME should use >=
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+                mappedPerformanceMode = performanceMode;
+                break;
+            }
+            // fall through
+        case -1:
+        default:
+            mappedPerformanceMode = -1;
+            break;
+            }
+
+        return mappedPerformanceMode;
+    }
+
+
+    int getPerformanceMode() {
+        return mPerformanceMode;
+    }
+
+    String getPerformanceModeString(int performanceMode) {
+        String name = null;
+        String[] myArray = getResources().getStringArray(R.array.performance_mode_array);
+
+        if (myArray != null && performanceMode >= -1 && performanceMode < myArray.length - 1) {
+            name = myArray[performanceMode + 1];
+        }
+        return name;
+    }
+
+
+    void setPerformanceMode(int performanceMode) { mPerformanceMode = performanceMode; }
 
     int getIgnoreFirstFrames() {
         return mIgnoreFirstFrames;
@@ -255,6 +299,10 @@ public class LoopbackApplication extends Application {
         mCaptureWavSnippetsEnabled = enabled;
     }
 
+    public void setSoundLevelCalibrationEnabled(boolean enabled) {
+        mSoundLevelCalibrationEnabled = enabled;
+    }
+
     public boolean isCaptureEnabled() {
         return isCaptureSysTraceEnabled() || isCaptureBugreportEnabled();
     }
@@ -265,6 +313,10 @@ public class LoopbackApplication extends Application {
 
     public boolean isCaptureBugreportEnabled() {
         return mCaptureBugreportEnabled;
+    }
+
+    public boolean isSoundLevelCalibrationEnabled() {
+        return mSoundLevelCalibrationEnabled;
     }
 
     public int getNumStateCaptures() {

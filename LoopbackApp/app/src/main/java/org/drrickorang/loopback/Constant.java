@@ -29,6 +29,7 @@ public class Constant {
 
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY = 222;
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD = 223;
+    public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_CALIBRATION = 224;
 
     public static final int AUDIO_THREAD_TYPE_JAVA = 0;
     public static final int AUDIO_THREAD_TYPE_NATIVE = 1;

@@ -145,3 +145,10 @@ ssize_t audio_utils_fifo_read(struct audio_utils_fifo *fifo, void *buffer, size_
     }
     return availToRead;
 }
+
+size_t audio_utils_fifo_availToRead(struct audio_utils_fifo *fifo) {
+    int32_t rear = android_atomic_acquire_load(&fifo->mRear);
+    int32_t front = fifo->mFront;
+    size_t availToRead = audio_utils_fifo_diff(fifo, rear, front);
+    return availToRead;
+}

@@ -40,6 +40,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/buttonTest_enabled"
                 android:drawableLeft="@drawable/ic_play_arrow"
+                android:drawableStart="@drawable/ic_play_arrow"
                 style="@style/TextAppearance.AppCompat.Button"
                 android:onClick="onButtonLatencyTest"/>
 
@@ -50,11 +51,23 @@
                 android:layout_height="wrap_content"
                 android:text="@string/buttonBufferTest"
                 android:drawableLeft="@drawable/ic_play_arrow"
+                android:drawableStart="@drawable/ic_play_arrow"
                 style="@style/TextAppearance.AppCompat.Button"
                 android:onClick="onButtonBufferTest"/>
 
         </LinearLayout>
     </HorizontalScrollView>
+
+    <Button
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/buttonCalibrateSoundLevel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/buttonCalibrateSoundLevel"
+        android:drawableLeft="@drawable/ic_play_arrow"
+        android:drawableStart="@drawable/ic_play_arrow"
+        style="@style/TextAppearance.AppCompat.Button"
+        android:onClick="onButtonCalibrateSoundLevel" />
 
     <TextView
         android:id="@+id/textInfo"
@@ -159,7 +172,6 @@
             android:layout_height="wrap_content"
             android:text=""
             android:id="@+id/resultSummary"
-            android:visibility="invisible"
             android:textStyle="bold"/>
     </LinearLayout>
 

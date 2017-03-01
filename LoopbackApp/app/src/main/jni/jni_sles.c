@@ -22,6 +22,7 @@
 
 JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
   (JNIEnv *env, jobject obj __unused, jint samplingRate, jint frameCount, jint micSource,
+   jint performanceMode,
    jint testType, jdouble frequency1, jobject byteBuffer, jshortArray loopbackTone,
    jint maxRecordedLateCallbacks, jint ignoreFirstFrames) {
 
@@ -33,6 +34,7 @@ JNIEXPORT jlong JNICALL Java_org_drrickorang_loopback_NativeAudioThread_slesInit
     short* loopbackToneArray = (*env)->GetShortArrayElements(env, loopbackTone, 0);
 
     if (slesInit(&pSles, samplingRate, frameCount, micSource,
+                 performanceMode,
                  testType, frequency1, byteBufferPtr, byteBufferLength,
                  loopbackToneArray, maxRecordedLateCallbacks, ignoreFirstFrames) != SLES_FAIL) {
         return (long) pSles;

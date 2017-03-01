@@ -43,6 +43,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
     private static final String TAG = "SettingsActivity";
 
     private Spinner      mSpinnerMicSource;
+    private Spinner      mSpinnerPerformanceMode;
     private Spinner      mSpinnerSamplingRate;
     private Spinner      mSpinnerAudioThreadType;
     private TextView     mTextSettingsInfo;
@@ -57,6 +58,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
     private ToggleButton   mSystraceToggleButton;
     private ToggleButton   mBugreportToggleButton;
     private ToggleButton   mWavCaptureToggleButton;
+    private ToggleButton   mSoundLevelCalibrationToggleButton;
 
     ArrayAdapter<CharSequence> mAdapterSamplingRate;
 
@@ -80,6 +82,18 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         //set current value
         mSpinnerMicSource.setSelection(micSource, false);
         mSpinnerMicSource.setOnItemSelectedListener(this);
+
+        int performanceMode = getApp().getPerformanceMode();
+        mSpinnerPerformanceMode = (Spinner) findViewById(R.id.spinnerPerformanceMode);
+        ArrayAdapter<CharSequence> adapterPerformanceMode = ArrayAdapter.createFromResource(this,
+                R.array.performance_mode_array, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        adapterPerformanceMode.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        mSpinnerPerformanceMode.setAdapter(adapterPerformanceMode);
+        //set current value
+        mSpinnerPerformanceMode.setSelection(performanceMode + 1, false);
+        mSpinnerPerformanceMode.setOnItemSelectedListener(this);
 
         int samplingRate = getApp().getSamplingRate();
         //init spinner, etc
@@ -230,6 +244,11 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         mSystraceToggleButton.setChecked(getApp().isCaptureSysTraceEnabled());
         mSystraceToggleButton.setOnCheckedChangeListener(this);
 
+        mSoundLevelCalibrationToggleButton = (ToggleButton)
+                findViewById(R.id.soundLevelCalibrationEnabledToggle);
+        mSoundLevelCalibrationToggleButton.setChecked(getApp().isSoundLevelCalibrationEnabled());
+        mSoundLevelCalibrationToggleButton.setOnCheckedChangeListener(this);
+
         // Settings Picker for number of frames to ignore at the beginning
         mIgnoreFirstFramesUI = (SettingsPicker) findViewById(R.id.ignoreFirstFramesSettingPicker);
         mIgnoreFirstFramesUI.setMinMaxDefault(Constant.MIN_IGNORE_FIRST_FRAMES,
@@ -331,6 +350,13 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             log("mic Source:" + micSource);
             refresh();
             break;
+        case R.id.spinnerPerformanceMode:
+            int performanceMode = mSpinnerPerformanceMode.getSelectedItemPosition() - 1;
+            getApp().setPerformanceMode(performanceMode);
+            setSettingsHaveChanged();
+            log("performanceMode:" + performanceMode);
+            refresh();
+            break;
         }
     }
 
@@ -342,6 +368,8 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
             getApp().setCaptureSysTraceEnabled(isChecked);
         } else if (buttonView.getId() == mBugreportToggleButton.getId()) {
             getApp().setCaptureBugreportEnabled(isChecked);
+        } else if (buttonView.getId() == mSoundLevelCalibrationToggleButton.getId()) {
+            getApp().setSoundLevelCalibrationEnabled(isChecked);
         }
         mNumCapturesUI.setEnabled(getApp().isCaptureEnabled() ||
                 getApp().isCaptureWavSnippetsEnabled());
@@ -357,22 +385,25 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         // Another interface callback
     }
 
-    public void onButtonSysTraceHelp(View view) {
+    public void onButtonHelp(View view) {
         // Create a PopUpWindow with scrollable TextView
         View puLayout = this.getLayoutInflater().inflate(R.layout.report_window, null);
         PopupWindow popUp = new PopupWindow(puLayout, ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT, true);
 
-        // Generate report of glitch intervals and set pop up window text
         TextView helpText =
                 (TextView) popUp.getContentView().findViewById(R.id.ReportInfo);
-        helpText.setText(getResources().getString(R.string.systraceHelp));
+        if (view.getId() == R.id.buttonSystraceHelp || view.getId() == R.id.buttonBugreportHelp) {
+            helpText.setText(getResources().getString(R.string.systraceHelp));
+        } else if (view.getId() == R.id.buttonCalibrateSoundLevelHelp) {
+            helpText.setText(getResources().getString(R.string.calibrateSoundLevelHelp));
+        }
 
         // display pop up window, dismissible with back button
         popUp.showAtLocation(findViewById(R.id.settingsMainLayout), Gravity.TOP, 0, 0);
     }
 
-    /** Called when the user clicks the button */
+        /** Called when the user clicks the button */
     public void onButtonClick(View view) {
         getApp().computeDefaults();
         refresh();

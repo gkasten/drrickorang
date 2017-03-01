@@ -55,6 +55,7 @@ public class NativeAudioThread extends Thread {
     private int mMinPlayerBufferSizeInBytes = 0;
     private int mMinRecorderBuffSizeInBytes = 0; // currently not used
     private int mMicSource;
+    private int mPerformanceMode = -1;
     private int mIgnoreFirstFrames;
 
     private boolean mIsRequestStop = false;
@@ -86,13 +87,14 @@ public class NativeAudioThread extends Thread {
 
 
     public NativeAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
-                             int micSource, int testType, int bufferTestDurationInSeconds,
+                             int micSource, int performanceMode, int testType, int bufferTestDurationInSeconds,
                              int bufferTestWavePlotDurationInSeconds, int ignoreFirstFrames,
                              CaptureHolder captureHolder) {
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
         mMicSource = micSource;
+        mPerformanceMode = performanceMode;
         mTestType = testType;
         mBufferTestDurationInSeconds = bufferTestDurationInSeconds;
         mBufferTestWavePlotDurationInSeconds = bufferTestWavePlotDurationInSeconds;
@@ -101,6 +103,19 @@ public class NativeAudioThread extends Thread {
         setName("Loopback_NativeAudio");
     }
 
+    public NativeAudioThread(NativeAudioThread old) {
+        mSamplingRate = old.mSamplingRate;
+        mMinPlayerBufferSizeInBytes = old.mMinPlayerBufferSizeInBytes;
+        mMinRecorderBuffSizeInBytes = old.mMinRecorderBuffSizeInBytes;
+        mMicSource = old.mMicSource;
+        mPerformanceMode = old.mPerformanceMode;
+        mTestType = old.mTestType;
+        mBufferTestDurationInSeconds = old.mBufferTestDurationInSeconds;
+        mBufferTestWavePlotDurationInSeconds = old.mBufferTestWavePlotDurationInSeconds;
+        mIgnoreFirstFrames = old.mIgnoreFirstFrames;
+        mCaptureHolder = old.mCaptureHolder;
+        setName("Loopback_NativeAudio");
+    }
 
     //JNI load
     static {
@@ -116,6 +131,7 @@ public class NativeAudioThread extends Thread {
 
     //jni calls
     public native long  slesInit(int samplingRate, int frameCount, int micSource,
+                                 int performanceMode,
                                  int testType, double frequency1, ByteBuffer byteBuffer,
                                  short[] sincTone, int maxRecordedLateCallbacks,
                                  int ignoreFirstFrames);
@@ -173,7 +189,8 @@ public class NativeAudioThread extends Thread {
         mPipeByteBuffer = new PipeByteBuffer(Constant.MAX_SHORTS);
         long startTimeMs = System.currentTimeMillis();
         long sles_data = slesInit(mSamplingRate,
-                mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME, mMicSource, mTestType,
+                mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME, mMicSource,
+                mPerformanceMode, mTestType,
                 mFrequency1, mPipeByteBuffer.getByteBuffer(), loopbackTone,
                 mBufferTestDurationInSeconds * Constant.MAX_RECORDED_LATE_CALLBACKS_PER_SECOND,
                 mIgnoreFirstFrames);
@@ -229,7 +246,6 @@ public class NativeAudioThread extends Thread {
                 log("about to destroy...");
                 break;
             case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
-                //TODO adjust sound level to appropriate level before doing native buffer test
                 setUpGlitchDetectionThread();
                 long testDurationMs = mBufferTestDurationInSeconds * Constant.MILLIS_PER_SECOND;
                 long elapsedTimeMs = System.currentTimeMillis() - startTimeMs;

@@ -60,6 +60,21 @@
                 android:background="@android:color/darker_gray"/>
 
             <TextView
+                android:id="@+id/textPerformanceMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/labelPerformanceMode"/>
+            <Spinner
+                android:id="@+id/spinnerPerformanceMode"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"/>
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <TextView
                 android:id="@+id/textAudioThreadType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -202,7 +217,8 @@
                     <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:onClick="onButtonSysTraceHelp"
+                        android:onClick="onButtonHelp"
+                        android:id="@+id/buttonSystraceHelp"
                         android:src="@drawable/ic_help_outline"/>
                 </RelativeLayout>
             </LinearLayout>
@@ -247,7 +263,8 @@
                     <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:onClick="onButtonSysTraceHelp"
+                        android:onClick="onButtonHelp"
+                        android:id="@+id/buttonBugreportHelp"
                         android:src="@drawable/ic_help_outline"/>
                 </RelativeLayout>
             </LinearLayout>
@@ -312,6 +329,52 @@
                 android:id="@+id/ignoreFirstFramesSettingPicker"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"/>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:padding="15dp">
+
+                <RelativeLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="3">
+                    <ToggleButton
+                        android:id="@+id/soundLevelCalibrationEnabledToggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginRight="15dp"
+                        android:background="@drawable/togglebutton_state_drawable"
+                        android:textOn="Enabled"
+                        android:textOff="Disabled"/>
+                </RelativeLayout>
+                <RelativeLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="6">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/enableSoundLevelCalibration"/>
+                </RelativeLayout>
+                <RelativeLayout
+                    android:layout_width="0dip"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:onClick="onButtonHelp"
+                        android:id="@+id/buttonCalibrateSoundLevelHelp"
+                        android:src="@drawable/ic_help_outline"/>
+                </RelativeLayout>
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>

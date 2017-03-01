@@ -15,6 +15,8 @@
  */
 
 
+// FIXME taken from OpenSLES_AndroidConfiguration.h
+#define SL_ANDROID_KEY_PERFORMANCE_MODE  ((const SLchar*) "androidPerformanceMode")
 
 ////////////////////////////////////////////
 /// Actual sles functions.
@@ -31,8 +33,10 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
+             int performanceMode,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
              short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames) {
     int status = SLES_FAIL;
@@ -49,7 +53,8 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSourc
         {
             SLES_PRINTF("creating server. Sampling rate =%d, frame count = %d",
                         samplingRate, frameCount);
-            status = slesCreateServer(pSles, samplingRate, frameCount, micSource, testType,
+            status = slesCreateServer(pSles, samplingRate, frameCount, micSource,
+                                      performanceMode, testType,
                                       frequency1, byteBufferPtr, byteBufferLength, loopbackTone,
                                       maxRecordedLateCallbacks, ignoreFirstFrames);
             SLES_PRINTF("slesCreateServer =%d", status);
@@ -230,6 +235,32 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         }
 
         if (pSles->testType == TEST_TYPE_LATENCY) {
+            // Jitter buffer should have strictly less than 2 buffers worth of data in it.
+            // This is to prevent the test itself from adding too much latency.
+            size_t discardedInputFrames = 0;
+            for (;;) {
+                size_t availToRead = audio_utils_fifo_availToRead(&pSles->fifo);
+                if (availToRead < pSles->bufSizeInFrames * 2) {
+                    break;
+                }
+                ssize_t actual = audio_utils_fifo_read(&pSles->fifo, buffer, pSles->bufSizeInFrames);
+                if (actual > 0) {
+                    discardedInputFrames += actual;
+                }
+                if (actual != (ssize_t) pSles->bufSizeInFrames) {
+                    break;
+                }
+            }
+            if (discardedInputFrames > 0) {
+                if (pSles->totalDiscardedInputFrames > 0) {
+                    __android_log_print(ANDROID_LOG_WARN, "sles_jni",
+                        "Discarded an additional %zu input frames after a total of %zu input frames"
+                        " had previously been discarded",
+                        discardedInputFrames, pSles->totalDiscardedInputFrames);
+                }
+                pSles->totalDiscardedInputFrames += discardedInputFrames;
+            }
+
             ssize_t actual = audio_utils_fifo_read(&(pSles->fifo), buffer, pSles->bufSizeInFrames);
             if (actual != (ssize_t) pSles->bufSizeInFrames) {
                 write(1, "/", 1);
@@ -260,6 +291,7 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
                 }
 
                 pSles->injectImpulse = 0;
+                pSles->totalDiscardedInputFrames = 0;
             }
         } else if (pSles->testType == TEST_TYPE_BUFFER_PERIOD) {
             double twoPi = M_PI * 2;
@@ -417,6 +449,7 @@ bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBuf
 }
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
+                     int performanceMode,
                      int testType, double frequency1, char *byteBufferPtr, int byteBufferLength,
                      short *loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames) {
     int status = SLES_FAIL;
@@ -470,6 +503,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         pSles->freeBufCount = 0;   // calculated
         pSles->bufSizeInBytes = 0; // calculated
         pSles->injectImpulse = 300; // -i#i
+        pSles->totalDiscardedInputFrames = 0;
         pSles->ignoreFirstFrames = ignoreFirstFrames;
 
         // Storage area for the buffer queues
@@ -622,10 +656,10 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         audiosnk.pFormat = NULL;
         pSles->playerObject = NULL;
         pSles->recorderObject = NULL;
-        SLInterfaceID ids_tx[1] = {SL_IID_BUFFERQUEUE};
-        SLboolean flags_tx[1] = {SL_BOOLEAN_TRUE};
+        SLInterfaceID ids_tx[2] = {SL_IID_BUFFERQUEUE, SL_IID_ANDROIDCONFIGURATION};
+        SLboolean flags_tx[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
         result = (*engineEngine)->CreateAudioPlayer(engineEngine, &(pSles->playerObject),
-                &audiosrc, &audiosnk, 1, ids_tx, flags_tx);
+                &audiosrc, &audiosnk, 2, ids_tx, flags_tx);
         if (SL_RESULT_CONTENT_UNSUPPORTED == result) {
             fprintf(stderr, "Could not create audio player (result %x), check sample rate\n",
                     result);
@@ -634,6 +668,24 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
             goto cleanup;
         }
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+        {
+           /* Get the Android configuration interface which is explicit */
+            SLAndroidConfigurationItf configItf;
+            result = (*(pSles->playerObject))->GetInterface(pSles->playerObject,
+                                                 SL_IID_ANDROIDCONFIGURATION, (void*)&configItf);
+            ASSERT_EQ(SL_RESULT_SUCCESS, result);
+
+            /* Use the configuration interface to configure the player before it's realized */
+            if (performanceMode != -1) {
+                SLuint32 performanceMode32 = performanceMode;
+                result = (*configItf)->SetConfiguration(configItf, SL_ANDROID_KEY_PERFORMANCE_MODE,
+                        &performanceMode32, sizeof(SLuint32));
+                ASSERT_EQ(SL_RESULT_SUCCESS, result);
+            }
+
+        }
+
         result = (*(pSles->playerObject))->Realize(pSles->playerObject, SL_BOOLEAN_FALSE);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
         SLPlayItf playerPlay;
@@ -724,6 +776,12 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
             if (presetValue != SL_ANDROID_RECORDING_PRESET_NONE) {
                 result = (*configItf)->SetConfiguration(configItf, SL_ANDROID_KEY_RECORDING_PRESET,
                         &presetValue, sizeof(SLuint32));
+                ASSERT_EQ(SL_RESULT_SUCCESS, result);
+            }
+            if (performanceMode != -1) {
+                SLuint32 performanceMode32 = performanceMode;
+                result = (*configItf)->SetConfiguration(configItf, SL_ANDROID_KEY_PERFORMANCE_MODE,
+                        &performanceMode32, sizeof(SLuint32));
                 ASSERT_EQ(SL_RESULT_SUCCESS, result);
             }
 

@@ -79,6 +79,8 @@ ssize_t audio_utils_fifo_write(struct audio_utils_fifo *fifo, const void *buffer
 // A negative return value indicates an error.  Currently there are no errors defined.
 ssize_t audio_utils_fifo_read(struct audio_utils_fifo *fifo, void *buffer, size_t count);
 
+size_t audio_utils_fifo_availToRead(struct audio_utils_fifo *fifo);
+
 #ifdef __cplusplus
 }
 #endif

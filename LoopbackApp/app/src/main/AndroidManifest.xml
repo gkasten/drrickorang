@@ -23,8 +23,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.drrickorang.loopback"
 
-    android:versionCode="15"
-    android:versionName="0.9.72">
+    android:versionCode="17"
+    android:versionName="0.9.74">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -41,7 +41,8 @@
             android:name="org.drrickorang.loopback.LoopbackActivity"
             android:theme="@android:style/Theme.Holo.Light"
             android:configChanges="orientation|keyboardHidden|screenLayout"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

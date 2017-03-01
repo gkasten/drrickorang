@@ -32,6 +32,7 @@
     <string name="ReadHistTitle">Frequency vs. Recorder Buffer Period (ms) Plot</string>
     <string name="WriteHistTitle">Frequency vs. Player Buffer Period (ms) Plot</string>
     <string name="buttonBufferTest">Buffer Period\n&amp; Glitch Test</string>
+    <string name="buttonCalibrateSoundLevel">Calibrate Sound Level Now</string>
     <string name="buttonGlitches">Glitches</string>
     <string name="numGlitches">Total Number of Glitches:</string>
 
@@ -50,6 +51,15 @@
         <item>VOICE_COMMUNICATION</item>
         <item>REMOTE_SUBMIX (Java only)</item>
         <item>UNPROCESSED (N or later)</item>
+    </string-array>
+
+    <string name="labelPerformanceMode">Performance Mode</string>
+    <string-array name="performance_mode_array">
+        <item>DEFAULT</item>
+        <item>NONE</item>
+        <item>LATENCY</item>
+        <item>LATENCY_EFFECTS</item>
+        <item>POWER_SAVING</item>
     </string-array>
 
     <string name="labelInfo">Test settings will appear here after the first test is run</string>
@@ -139,6 +149,8 @@
     <string name="enableSystrace">Systrace Captures During Test</string>
     <string name="enableBugreport">BugReport Captures During Test</string>
     <string name="enableWavSnippets">Wav Snippet Captures During Test</string>
+    <string name="enableSoundLevelCalibration">
+        Calibrate sound level before latency test (experimental)</string>
     <string name="numCapturesSetting">Number of Systrace/BugReport and or Wav Snippets to Capture
     </string>
     <string name="labelIgnoreFirstFrames">
@@ -171,5 +183,11 @@
 
         Example invocation:\n
         adb shell \"sh /sdcard/Loopback/loopback_listener load am\"
+    </string>
+
+    <string name="calibrateSoundLevelHelp">
+        This feature is highly experimental. It will try various volume levels until it picks one
+        that it thinks is optimal. It has only been tested with the loopback plug and may fail
+        completely in open air.
     </string>
 </resources>

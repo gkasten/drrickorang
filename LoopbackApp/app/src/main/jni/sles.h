@@ -67,6 +67,7 @@ typedef struct {
     SLuint32 freeBufCount;   // calculated
     SLuint32 bufSizeInBytes; // calculated
     int injectImpulse; // -i#i
+    size_t totalDiscardedInputFrames;   // total number of input frames discarded
     int ignoreFirstFrames;
 
     // Storage area for the buffer queues
@@ -82,8 +83,10 @@ typedef struct {
     SLuint32 freeFront;  // oldest free
     SLuint32 freeRear;   // next to be freed
 
-    struct audio_utils_fifo fifo; //(*)
-    struct audio_utils_fifo fifo2;
+    struct audio_utils_fifo fifo;   // jitter buffer between recorder and player callbacks,
+                                    // to mitigate unpredictable phase difference between these,
+                                    // or even concurrent callbacks on two CPU cores
+    struct audio_utils_fifo fifo2;  // For sending data to java code (to plot it)
     short *fifo2Buffer;
     short *fifoBuffer;
     SLAndroidSimpleBufferQueueItf recorderBufferQueue;
@@ -131,6 +134,7 @@ enum {
 } SLES_STATUS_ENUM;
 
 int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
+             int performanceMode,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
              short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
 
@@ -142,6 +146,7 @@ int slesDestroy(sles_data ** ppSles);
 int slesFull(sles_data *pSles);
 
 int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
+                     int performanceMode,
                      int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
                      short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
 int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
