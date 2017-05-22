@@ -63,13 +63,6 @@ do
 
             echo "LOOPBACK LISTENER: Finished capture"
 
-            # Check for case that test has ended while capturing state and exit
-            if [ -e "$SIGNAL_FILE" ] && [ -s "$SIGNAL_FILE" ] \
-            && [ $(cat $SIGNAL_FILE) == $TERMINATE_SIGNAL ]
-            then
-                exitListener
-            fi
-
             rm $SIGNAL_FILE
         fi
     fi

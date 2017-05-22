@@ -140,7 +140,14 @@ public class CaptureHolder {
     /**
      * Send signal to listener script to terminate and stop atrace
      **/
-    public static void stopLoopbackListenerScript() {
+    public void stopLoopbackListenerScript() {
+        if (mCaptureThread == null || !mCaptureThread.stopLoopbackListenerScript()) {
+            // The capture thread is unable to execute this operation.
+            stopLoopbackListenerScriptImpl();
+        }
+    }
+
+    static void stopLoopbackListenerScriptImpl() {
         try {
             OutputStream outputStream = new FileOutputStream(SIGNAL_FILE);
             outputStream.write(TERMINATE_SIGNAL.getBytes());
@@ -204,6 +211,8 @@ public class CaptureHolder {
 
         private CapturedState mNewCapturedState;
         private int mIndexToPlace;
+        private boolean mIsRunning;
+        private boolean mSignalScriptToQuit;
 
         /**
          * Create new thread with capture state struct for captured systrace, bugreport and wav
@@ -217,6 +226,9 @@ public class CaptureHolder {
 
         @Override
         public void run() {
+            synchronized (this) {
+                mIsRunning = true;
+            }
 
             // Write names of desired captures to signal file, signalling
             // the listener script to write systrace and/or bugreport to those files
@@ -287,12 +299,28 @@ public class CaptureHolder {
             for (CapturedState cs:mCapturedStates) log += "\n...." + cs;
             Log.d(TAG, log);
 
+            synchronized (this) {
+                if (mSignalScriptToQuit) {
+                    CaptureHolder.stopLoopbackListenerScriptImpl();
+                    mSignalScriptToQuit = false;
+                }
+                mIsRunning = false;
+            }
             Log.d(TAG, "Completed capture thread terminating");
         }
 
         // Sets the rank of the current capture to rank if it is greater than the current value
         public synchronized void updateRank(int rank) {
             mNewCapturedState.rank = Math.max(mNewCapturedState.rank, rank);
+        }
+
+        public synchronized boolean stopLoopbackListenerScript() {
+            if (mIsRunning) {
+                mSignalScriptToQuit = true;
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 }

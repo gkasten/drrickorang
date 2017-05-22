@@ -37,6 +37,8 @@ public class Correlation implements Parcelable {
     public double mEstimatedLatencySamples = 0;
     public double mEstimatedLatencyMs = 0;
     public double mEstimatedLatencyConfidence = 0.0;
+    public double mAverage = 0.0;
+    public double mRms = 0.0;
 
     private double mAmplitudeThreshold = 0.001;  // 0.001 = -60 dB noise
 
@@ -89,6 +91,9 @@ public class Correlation implements Parcelable {
         log(String.format(" Maxvalue %f, max Index : %d/%d (%d)  minIndex = %d", maxValue, maxIndex,
                           mDataAutocorrelated.length, data.length, minIndex));
         log(String.format("  average : %.3f  rms: %.3f", average, rms));
+
+        mAverage = average;
+        mRms = rms;
 
         mEstimatedLatencyConfidence = 0.0;
         if (average > 0) {
@@ -199,6 +204,8 @@ public class Correlation implements Parcelable {
             bundle.putDouble("mEstimatedLatencySamples", mEstimatedLatencySamples);
             bundle.putDouble("mEstimatedLatencyMs", mEstimatedLatencyMs);
             bundle.putDouble("mEstimatedLatencyConfidence", mEstimatedLatencyConfidence);
+            bundle.putDouble("mAverage", mAverage);
+            bundle.putDouble("mRms", mRms);
         }
         dest.writeBundle(bundle);
     }
@@ -211,6 +218,8 @@ public class Correlation implements Parcelable {
             mEstimatedLatencySamples    = bundle.getDouble("mEstimatedLatencySamples");
             mEstimatedLatencyMs         = bundle.getDouble("mEstimatedLatencyMs");
             mEstimatedLatencyConfidence = bundle.getDouble("mEstimatedLatencyConfidence");
+            mAverage                    = bundle.getDouble("mAverage");
+            mRms                        = bundle.getDouble("mRms");
         }
     }
 

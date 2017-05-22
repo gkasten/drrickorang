@@ -45,7 +45,7 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSourc
 
         memset(pSles, 0, sizeof(sles_data));
 
-         SLES_PRINTF("malloc %zu bytes at %p", sizeof(sles_data), pSles);
+        SLES_PRINTF("pSles malloc %zu bytes at %p", sizeof(sles_data), pSles);
         //__android_log_print(ANDROID_LOG_INFO, "sles_jni",
         //"malloc %d bytes at %p", sizeof(sles_data), pSles);//Or ANDROID_LOG_INFO, ...
         *ppSles = pSles;
@@ -70,6 +70,7 @@ int slesDestroy(sles_data ** ppSles) {
 
         if (*ppSles != NULL)
         {
+            SLES_PRINTF("free memory at %p",*ppSles);
             free(*ppSles);
             *ppSles = 0;
         }
@@ -533,9 +534,13 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         // Initialize free buffers
         pSles->freeBuffers = (char **) calloc(pSles->freeBufCount + 1, sizeof(char *));
+        SLES_PRINTF("  calloc freeBuffers %zu bytes at %p",pSles->freeBufCount + 1,
+                    pSles->freeBuffers);
         unsigned j;
         for (j = 0; j < pSles->freeBufCount; ++j) {
             pSles->freeBuffers[j] = (char *) malloc(pSles->bufSizeInBytes);
+            SLES_PRINTF(" buff%d malloc %zu bytes at %p",j, pSles->bufSizeInBytes,
+                        pSles->freeBuffers[j]);
         }
         pSles->freeFront = 0;
         pSles->freeRear = pSles->freeBufCount;
@@ -543,11 +548,13 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         // Initialize record queue
         pSles->rxBuffers = (char **) calloc(pSles->rxBufCount + 1, sizeof(char *));
+        SLES_PRINTF("  calloc rxBuffers %zu bytes at %p",pSles->rxBufCount + 1, pSles->rxBuffers);
         pSles->rxFront = 0;
         pSles->rxRear = 0;
 
         // Initialize play queue
         pSles->txBuffers = (char **) calloc(pSles->txBufCount + 1, sizeof(char *));
+        SLES_PRINTF("  calloc txBuffers %zu bytes at %p",pSles->txBufCount + 1, pSles->txBuffers);
         pSles->txFront = 0;
         pSles->txRear = 0;
 
@@ -970,8 +977,35 @@ int slesDestroyServer(sles_data *pSles) {
         (*(pSles->engineObject))->Destroy(pSles->engineObject);
         SLES_PRINTF("slesDestroyServer 7");
 
-//        free(pSles);
-//        pSles = NULL;
+        //free buffers
+        if (NULL != pSles->freeBuffers) {
+            for (unsigned j = 0; j < pSles->freeBufCount; ++j) {
+                if (NULL != pSles->freeBuffers[j]) {
+                    SLES_PRINTF(" free buff%d at %p",j, pSles->freeBuffers[j]);
+                    free (pSles->freeBuffers[j]);
+                }
+            }
+            SLES_PRINTF("  free freeBuffers at %p", pSles->freeBuffers);
+            free(pSles->freeBuffers);
+        } else {
+            SLES_PRINTF("  freeBuffers NULL, no need to free");
+        }
+
+
+        if (NULL != pSles->rxBuffers) {
+            SLES_PRINTF("  free rxBuffers at %p", pSles->rxBuffers);
+            free(pSles->rxBuffers);
+        } else {
+            SLES_PRINTF("  rxBuffers NULL, no need to free");
+        }
+
+        if (NULL != pSles->txBuffers) {
+            SLES_PRINTF("  free txBuffers at %p", pSles->txBuffers);
+            free(pSles->txBuffers);
+        } else {
+            SLES_PRINTF("  txBuffers NULL, no need to free");
+        }
+
 
         status = SLES_SUCCESS;
     }

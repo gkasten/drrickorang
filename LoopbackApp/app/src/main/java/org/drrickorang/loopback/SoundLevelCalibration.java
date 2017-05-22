@@ -25,7 +25,7 @@ import android.util.Log;
 class SoundLevelCalibration {
     private static final int SECONDS_PER_LEVEL = 1;
     private static final int MAX_STEPS = 15; // The maximum number of levels that should be tried
-    private static final double CRITICAL_RATIO = 0.4; // Ratio of input over output amplitude at
+    private static final double CRITICAL_RATIO = 0.41; // Ratio of input over output amplitude at
                                                       // which the feedback loop neither decays nor
                                                       // grows (determined experimentally)
     private static final String TAG = "SoundLevelCalibration";
@@ -68,34 +68,39 @@ class SoundLevelCalibration {
     // TODO: Allow stopping in the middle of calibration
     int calibrate() {
         final int maxLevel = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-        int delta = (maxLevel + MAX_STEPS - 1) / MAX_STEPS; // round up
-        int level;
-        // TODO: Use a better algorithm such as binary search.
-        for(level = maxLevel; level >= 0; level -= delta) {
-            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0);
-            if (mChangeListener != null) {
-                mChangeListener.go(level);
-            }
+        int levelBottom = 0;
+        int levelTop = maxLevel + 1;
+        while(levelTop - levelBottom > 1) {
+            int level = (levelBottom + levelTop) / 2;
+            Log.d(TAG, "setting level to " + level);
+            setVolume(level);
 
-            mNativeAudioThread.start();
-            try {
-                mNativeAudioThread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            double[] data = mNativeAudioThread.getWaveData();
+            double amplitude = runAudioThread(mNativeAudioThread);
             mNativeAudioThread = new NativeAudioThread(mNativeAudioThread); // generate fresh thread
-            double amplitude = averageAmplitude(data);
             Log.d(TAG, "calibrate: at sound level " + level + " volume was " + amplitude);
 
             if (amplitude < Constant.SINE_WAVE_AMPLITUDE * CRITICAL_RATIO) {
-                Log.d(TAG, "calibrate: chose sound level " + level);
-                break;
+                levelBottom = level;
+            } else {
+                levelTop = level;
             }
         }
+        // At this point, levelBottom has the highest proper value, if there is one (0 otherwise)
+        Log.d(TAG, "Final level: " + levelBottom);
+        setVolume(levelBottom);
+        return levelBottom;
+    }
 
-        // Return the maximum level if we can't find a proper one
-        return level != 0 ? level : maxLevel;
+    private double runAudioThread(NativeAudioThread thread) {
+        // runs the native audio thread and returns the average amplitude
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        double[] data = thread.getWaveData();
+        return averageAmplitude(data);
     }
 
     // TODO: Only gives accurate results for an undistorted sine wave. Check for distortion.
@@ -108,6 +113,13 @@ class SoundLevelCalibration {
             sumSquare += x * x;
         }
         return Math.sqrt(2.0 * sumSquare / data.length); // amplitude of the sine wave
+    }
+
+    private void setVolume(int level) {
+        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0);
+        if (mChangeListener != null) {
+            mChangeListener.go(level);
+        }
     }
 
     void setChangeListener(SoundLevelChangeListener changeListener) {

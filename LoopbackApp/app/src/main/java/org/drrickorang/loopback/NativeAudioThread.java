@@ -292,6 +292,10 @@ public class NativeAudioThread extends Thread {
                 endDetecting();
             }
 
+            if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY) {
+                mCaptureHolder.captureState(0);
+            }
+
             runDestroy(sles_data);
 
             final int maxTry = 20;

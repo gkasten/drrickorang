@@ -27,7 +27,6 @@ import android.util.Log;
 import android.os.Handler;
 import android.os.Message;
 
-
 /**
  * A thread/audio track based audio synth.
  */
@@ -172,9 +171,8 @@ public class LoopbackAudioThread extends Thread {
                         // read from the pipe and plays it out
                         int samplesAvailable = mLatencyTestPipe.availableToRead();
                         if (samplesAvailable > 0) {
-                            int samplesOfInterest = samplesAvailable;
-                            if (mMinPlayerBufferSizeSamples < samplesOfInterest)
-                                samplesOfInterest = mMinPlayerBufferSizeSamples;
+                            int samplesOfInterest = Math.min(samplesAvailable,
+                                    mMinPlayerBufferSizeSamples);
 
                             int samplesRead = mLatencyTestPipe.read(audioShortArrayOut, 0,
                                                                     samplesOfInterest);
