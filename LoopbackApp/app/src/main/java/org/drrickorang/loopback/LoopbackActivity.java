@@ -19,6 +19,8 @@ package org.drrickorang.loopback;
 import android.Manifest;
 import android.app.Activity;
 import android.app.DialogFragment;
+import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -117,11 +119,12 @@ public class LoopbackActivity extends Activity
     private TextView mTextViewCurrentLevel;
     private TextView mTextViewResultSummary;
 
-    private int          mTestType;
-    private double []    mWaveData;    // this is where we store the data for the wave plot
-    private Correlation  mCorrelation = new Correlation();
-    private BufferPeriod mRecorderBufferPeriod = new BufferPeriod();
-    private BufferPeriod mPlayerBufferPeriod = new BufferPeriod();
+    private static final String TAG_RETAINED_FRAGMENT = "RetainedFragment";
+    private RetainedFragment mRetainedFragment;
+    private int              mTestType;
+    private Correlation      mCorrelation = new Correlation();
+    private BufferPeriod     mRecorderBufferPeriod = new BufferPeriod();
+    private BufferPeriod     mPlayerBufferPeriod = new BufferPeriod();
 
     // for native buffer period
     private int[]  mNativeRecorderBufferPeriodArray;
@@ -135,6 +138,7 @@ public class LoopbackActivity extends Activity
 
     private static final String INTENT_SAMPLING_FREQUENCY = "SF";
     private static final String INTENT_CHANNEL_INDEX = "CI";
+    private static final String INTENT_CORRELATION_BLOCK_SIZE = "BS";
     private static final String INTENT_FILENAME = "FileName";
     private static final String INTENT_RECORDER_BUFFER = "RecorderBuffer";
     private static final String INTENT_PLAYER_BUFFER = "PlayerBuffer";
@@ -217,10 +221,10 @@ public class LoopbackActivity extends Activity
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_STOP:
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE:
                 if (mAudioThread != null) {
-                    mWaveData = mAudioThread.getWaveData();
+                    mRetainedFragment.setWaveData(mAudioThread.getWaveData());
                     mRecorderCallbackTimes = mRecorderBufferPeriod.getCallbackTimes();
                     mPlayerCallbackTimes = mPlayerBufferPeriod.getCallbackTimes();
-                    mCorrelation.computeCorrelation(mWaveData, mSamplingRate);
+                    mCorrelation.computeCorrelation(mRetainedFragment.getWaveData(), mSamplingRate);
                     log("got message java latency rec complete!!");
                     refreshPlots();
                     refreshState();
@@ -261,7 +265,7 @@ public class LoopbackActivity extends Activity
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP:
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE:
                 if (mAudioThread != null) {
-                    mWaveData = mAudioThread.getWaveData();
+                    mRetainedFragment.setWaveData(mAudioThread.getWaveData());
                     mGlitchesData = mAudioThread.getAllGlitches();
                     mGlitchingIntervalTooLong = mAudioThread.getGlitchingIntervalTooLong();
                     mFFTSamplingSize = mAudioThread.getFFTSamplingSize();
@@ -333,7 +337,7 @@ public class LoopbackActivity extends Activity
                     mGlitchingIntervalTooLong = mNativeAudioThread.getGlitchingIntervalTooLong();
                     mFFTSamplingSize = mNativeAudioThread.getNativeFFTSamplingSize();
                     mFFTOverlapSamples = mNativeAudioThread.getNativeFFTOverlapSamples();
-                    mWaveData = mNativeAudioThread.getWaveData();
+                    mRetainedFragment.setWaveData(mNativeAudioThread.getWaveData());
                     mNativeRecorderBufferPeriodArray = mNativeAudioThread.getRecorderBufferPeriod();
                     mNativeRecorderMaxBufferPeriod =
                             mNativeAudioThread.getRecorderMaxBufferPeriod();
@@ -348,7 +352,8 @@ public class LoopbackActivity extends Activity
 
                     if (msg.what != NativeAudioThread.
                             LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE) {
-                        mCorrelation.computeCorrelation(mWaveData, mSamplingRate);
+                        mCorrelation.computeCorrelation(mRetainedFragment.getWaveData(),
+                                mSamplingRate);
                     }
 
                     log("got message native buffer test rec complete!!");
@@ -444,6 +449,24 @@ public class LoopbackActivity extends Activity
         }
     };
 
+    public static class RetainedFragment extends Fragment {
+        private double[] mWaveData;    // this is where we store the data for the wave plot
+
+        // this method is only called once for this fragment
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            setRetainInstance(true);
+        }
+
+        public void setWaveData(double[] waveData) {
+            this.mWaveData = waveData;
+        }
+
+        public double[] getWaveData() {
+            return mWaveData;
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -452,6 +475,15 @@ public class LoopbackActivity extends Activity
         // Set the layout for this activity. You can find it
         View view = getLayoutInflater().inflate(R.layout.main_activity, null);
         setContentView(view);
+
+        // find the retained fragment on activity restarts
+        FragmentManager fm = getFragmentManager();
+        mRetainedFragment = (RetainedFragment) fm.findFragmentByTag(TAG_RETAINED_FRAGMENT);
+        // create the fragment and data the first time
+        if (mRetainedFragment == null) {
+            mRetainedFragment = new RetainedFragment();
+            fm.beginTransaction().add(mRetainedFragment, TAG_RETAINED_FRAGMENT).commit();
+        }
 
         // TODO: Write script to file at more appropriate time, from settings activity or intent
         // TODO: Respond to failure with more than just a toast
@@ -581,6 +613,11 @@ public class LoopbackActivity extends Activity
 
             if (b.containsKey(INTENT_SAMPLING_FREQUENCY)) {
                 getApp().setSamplingRate(b.getInt(INTENT_SAMPLING_FREQUENCY));
+                mIntentRunning = true;
+            }
+
+            if (b.containsKey(INTENT_CORRELATION_BLOCK_SIZE)) {
+                mCorrelation.setBlockSize(b.getInt(INTENT_CORRELATION_BLOCK_SIZE));
                 mIntentRunning = true;
             }
 
@@ -739,6 +776,14 @@ public class LoopbackActivity extends Activity
     @Override
     protected void onPause() {
         super.onPause();
+        // this means that this activity will not be recreated now, user is leaving it
+        // or the activity is otherwise finishing
+        if(isFinishing()) {
+            FragmentManager fm = getFragmentManager();
+            // we will not need this fragment anymore, this may also be a good place to signal
+            // to the retained fragment object to perform its own cleanup.
+            fm.beginTransaction().remove(mRetainedFragment).commit();
+        }
     }
 
     @Override
@@ -1476,7 +1521,7 @@ public class LoopbackActivity extends Activity
         mPlayerCallbackTimes = null;
         mRecorderCallbackTimes = null;
         mGlitchesData = null;
-        mWaveData = null;
+        mRetainedFragment.setWaveData(null);
     }
 
 
@@ -1670,7 +1715,7 @@ public class LoopbackActivity extends Activity
 
     /** Redraw the plot according to mWaveData */
     void refreshPlots() {
-        mWavePlotView.setData(mWaveData, mSamplingRate);
+        mWavePlotView.setData(mRetainedFragment.getWaveData(), mSamplingRate);
         mWavePlotView.redraw();
     }
 
@@ -1779,10 +1824,11 @@ public class LoopbackActivity extends Activity
 
     /** Save a .wav file of the wave plot on the main activity. */
     void saveToWaveFile(Uri uri) {
-        if (mWaveData != null && mWaveData.length > 0) {
+        double[] waveData = mRetainedFragment.getWaveData();
+        if (waveData != null && waveData.length > 0) {
             AudioFileOutput audioFileOutput = new AudioFileOutput(getApplicationContext(), uri,
                                                                   mSamplingRate);
-            boolean status = audioFileOutput.writeData(mWaveData);
+            boolean status = audioFileOutput.writeData(waveData);
             if (status) {
                 String wavFileAbsolutePath = getPath(uri);
                 // for some devices getPath fails
@@ -2316,8 +2362,6 @@ public class LoopbackActivity extends Activity
     }
 
     private void restoreInstanceState(Bundle in) {
-        mWaveData = in.getDoubleArray("mWaveData");
-
         mTestType = in.getInt("mTestType");
         mMicSource = in.getInt("mMicSource");
         mAudioThreadType = in.getInt("mAudioThreadType");
@@ -2343,7 +2387,7 @@ public class LoopbackActivity extends Activity
             findViewById(R.id.glitchReportPanel).setVisibility(View.VISIBLE);
         }
 
-        if(mWaveData != null) {
+        if(mRetainedFragment.getWaveData() != null) {
             mCorrelation = in.getParcelable("mCorrelation");
             mPlayerBufferPeriod = in.getParcelable("mPlayerBufferPeriod");
             mRecorderBufferPeriod = in.getParcelable("mRecorderBufferPeriod");
@@ -2355,7 +2399,7 @@ public class LoopbackActivity extends Activity
             mNativeRecorderBufferPeriodArray = in.getIntArray("mNativeRecorderBufferPeriodArray");
             mNativeRecorderMaxBufferPeriod = in.getInt("mNativeRecorderMaxBufferPeriod");
 
-            mWavePlotView.setData(mWaveData, mSamplingRate);
+            mWavePlotView.setData(mRetainedFragment.getWaveData(), mSamplingRate);
             refreshState();
             findViewById(R.id.zoomAndSaveControlPanel).setVisibility(View.VISIBLE);
             findViewById(R.id.resultSummary).setVisibility(View.VISIBLE);
@@ -2365,8 +2409,6 @@ public class LoopbackActivity extends Activity
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
-        // TODO: keep larger pieces of data in a fragment to speed up response to rotation
-        out.putDoubleArray("mWaveData", mWaveData);
 
         out.putInt("mTestType", mTestType);
         out.putInt("mMicSource", mMicSource);

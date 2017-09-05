@@ -29,10 +29,10 @@ import android.util.Log;
 public class Correlation implements Parcelable {
     private static final String TAG = "Correlation";
 
-    private int       mBlockSize = 4096;
+    private int       mBlockSize = Constant.DEFAULT_CORRELATION_BLOCK_SIZE;
     private int       mSamplingRate;
-    private double [] mDataDownsampled = new double [mBlockSize];
-    private double [] mDataAutocorrelated = new double[mBlockSize];
+    private double [] mDataDownsampled;
+    private double [] mDataAutocorrelated;
 
     public double mEstimatedLatencySamples = 0;
     public double mEstimatedLatencyMs = 0;
@@ -46,18 +46,19 @@ public class Correlation implements Parcelable {
 
     public Correlation() {
         // Default constructor for when no data will be restored
+
     }
 
     public void init(int blockSize, int samplingRate) {
-        mBlockSize = blockSize;
+        setBlockSize(blockSize);
         mSamplingRate = samplingRate;
     }
-
 
     public void computeCorrelation(double [] data, int samplingRate) {
         log("Started Auto Correlation for data with " + data.length + " points");
         mSamplingRate = samplingRate;
-
+        mDataDownsampled = new double [mBlockSize];
+        mDataAutocorrelated = new double[mBlockSize];
         downsampleData(data, mDataDownsampled, mAmplitudeThreshold);
 
         //correlation vector
@@ -123,7 +124,12 @@ public class Correlation implements Parcelable {
         mDataIsValid = false;
     }
 
+    public void setBlockSize(int blockSize){
+        mBlockSize = clamp(blockSize, Constant.CORRELATION_BLOCK_SIZE_MIN, Constant.CORRELATION_BLOCK_SIZE_MAX);
+    }
+
     private boolean downsampleData(double [] data, double [] dataDownsampled, double threshold) {
+        log("Correlation block size used in down sample: " + mBlockSize);
 
         boolean status;
         for (int i = 0; i < mBlockSize; i++) {
@@ -188,6 +194,19 @@ public class Correlation implements Parcelable {
         }
 
         return status;
+    }
+
+    /**
+     * Returns value if value is within inclusive bounds min through max
+     * otherwise returns min or max according to if value is less than or greater than the range
+     */
+    private int clamp(int value, int min, int max) {
+
+        if (max < min) throw new UnsupportedOperationException("min must be <= max");
+
+        if (value < min) return min;
+        else if (value > max) return max;
+        else return value;
     }
 
     @Override

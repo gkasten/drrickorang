@@ -76,6 +76,7 @@
         https://goo.gl/dxcw0d\n\n\n
         adb parameters:  all parameters are optional. If not specified, defaults will be used.\n
         -ei SF \t\t\t\t\t\t\t\t\t\t\t\t ####\t\t sampling frequency \n
+        -ei BS \t\t\t\t\t\t\t\t\t\t\t\t ####\t\t down sample block size \n
         -es Filename \t\t\t\t\t\t\t ssss\t\t\t output filename \n
         -ei MicSource \t\t\t\t\t\t\t ####\t\t microphone source\n
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 0: DEFAULT\n
@@ -190,4 +191,6 @@
         that it thinks is optimal. It has only been tested with the loopback plug and may fail
         completely in open air.
     </string>
+
+    <string name="notificationText">Please disregard me.</string>
 </resources>

@@ -64,6 +64,9 @@ public class Constant {
     // Settings Activity and ADB constants
     public static final int SAMPLING_RATE_MAX = 48000;
     public static final int SAMPLING_RATE_MIN = 8000;
+    public static final int CORRELATION_BLOCK_SIZE_MAX = 8192;
+    public static final int CORRELATION_BLOCK_SIZE_MIN = 2048;
+    public static final int DEFAULT_CORRELATION_BLOCK_SIZE = 4096;
     public static final int PLAYER_BUFFER_FRAMES_MAX = 8000;
     public static final int PLAYER_BUFFER_FRAMES_MIN = 16;
     public static final int RECORDER_BUFFER_FRAMES_MAX = 8000;

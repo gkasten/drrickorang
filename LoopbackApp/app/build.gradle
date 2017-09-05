@@ -2,20 +2,20 @@ apply plugin: 'com.android.model.application'
 
 model {
     android {
-        compileSdkVersion = 23
-        buildToolsVersion = "25.0"
+        compileSdkVersion 26
+        buildToolsVersion '26.0.0'
 
-        defaultConfig.with {
-            applicationId = "org.drrickorang.loopback"
-            minSdkVersion.apiLevel = 11
-            targetSdkVersion.apiLevel = 23
+        defaultConfig {
+            applicationId 'org.drrickorang.loopback'
+            minSdkVersion.apiLevel 11
+            targetSdkVersion.apiLevel 26
         }
         ndk {
-            moduleName "loopback"
+            moduleName 'loopback'
             cppFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString(), "-g"
             CFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString()
 
-            ldLibs.addAll "OpenSLES", "log"
+            ldLibs.addAll 'OpenSLES', 'log'
         }
         buildTypes {
             release {
@@ -27,9 +27,8 @@ model {
                     debuggable true
                 }
             }
-        }    }
-
-
+        }
+    }
 }
 
 dependencies {
