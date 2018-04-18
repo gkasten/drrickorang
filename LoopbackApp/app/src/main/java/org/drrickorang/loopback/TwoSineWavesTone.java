@@ -23,18 +23,21 @@ package org.drrickorang.loopback;
  * it will continue to generate the next section of the sine wave.
  */
 
+/*
 public class TwoSineWavesTone extends ToneGeneration {
     private int          mCount; // counts the total samples produced.
     private double       mPhase1; // current phase associated with mFrequency1
     private double       mPhase2; // current phase associated with mFrequency2
     private final double mPhaseIncrement1; // phase incrementation associated with mFrequency1
     private final double mPhaseIncrement2; // phase incrementation associated with mFrequency2
+*/
 
 
     /**
      * Currently, this class is never used, but it can be used in the future to create a different
      * kind of wave when running the test.
      */
+/*
     public TwoSineWavesTone(int samplingRate, double frequency1, double frequency2) {
         super(samplingRate);
         mCount = 0;
@@ -55,7 +58,7 @@ public class TwoSineWavesTone extends ToneGeneration {
             mPhase2 += mPhaseIncrement2;
 
             // insert glitches for every second if mIsGlitchEnabled == true.
-            if (mIsGlitchEnabled & (mCount % mSamplingRate == 0)) {
+            if (mIsGlitchEnabled && (mCount % mSamplingRate == 0)) {
                 mPhase1 += mPhaseIncrement1;
                 mPhase2 += mPhaseIncrement2;
             }
@@ -83,7 +86,7 @@ public class TwoSineWavesTone extends ToneGeneration {
             mPhase1 += mPhaseIncrement1;
             mPhase2 += mPhaseIncrement2;
             // insert glitches if mIsGlitchEnabled == true, and insert it for every second
-            if (mIsGlitchEnabled & (mCount % mSamplingRate == 0)) {
+            if (mIsGlitchEnabled && (mCount % mSamplingRate == 0)) {
                 mPhase1 += mPhaseIncrement1;
                 mPhase2 += mPhaseIncrement2;
             }
@@ -107,3 +110,4 @@ public class TwoSineWavesTone extends ToneGeneration {
         mPhase2 = 0;
     }
 }
+*/

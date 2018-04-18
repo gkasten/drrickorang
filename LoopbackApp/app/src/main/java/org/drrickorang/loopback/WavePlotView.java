@@ -45,8 +45,8 @@ public class WavePlotView extends View  {
     private double [] mValuesArray;  //top points to plot
     private double [] mValuesArray2; //bottom
 
-    private double [] mInsetArray;
-    private double [] mInsetArray2;
+    private double[]  mInsetArray;
+    private double[]  mInsetArray2;
     private int       mInsetSize = 20;
 
     private double mZoomFactorX = 1.0; //1:1  1 sample / point .  Note: Point != pixel.
@@ -402,12 +402,12 @@ public class WavePlotView extends View  {
     }
 
 
-    void resetArray() {
+    private void resetArray() {
         Arrays.fill(mValuesArray, 0);
         Arrays.fill(mValuesArray2, 0);
     }
 
-    void refreshView() {
+    private void refreshView() {
         double maxZoom = getMaxZoomOut();
         setZoom(maxZoom);
         setOffset(0, false);
@@ -415,7 +415,7 @@ public class WavePlotView extends View  {
         refreshGraph();
     }
 
-    void computeInset() {
+    private void computeInset() {
         if (mBigDataArray != null) {
             int sampleCount = mBigDataArray.length;
             double pointsPerSample = (double) mInsetSize / sampleCount;
@@ -470,7 +470,7 @@ public class WavePlotView extends View  {
     }
 
 
-    void computeViewArray(double zoomFactorX, int sampleOffset) {
+    private void computeViewArray(double zoomFactorX, int sampleOffset) {
         //zoom factor: how many samples per point. 1.0 = 1.0 samples per point
         // sample offset in samples.
         if (zoomFactorX < 1.0)
@@ -519,6 +519,7 @@ public class WavePlotView extends View  {
     }
 
 
+    // FIXME why not public?
     void setData(double[] dataVector, int sampleRate) {
         if (sampleRate < 1)
             throw new IllegalArgumentException("sampleRate must be a positive integer");
@@ -531,6 +532,7 @@ public class WavePlotView extends View  {
         }
     }
 
+    // also called in LoopbackActivity
     void redraw() {
         invalidate();
     }
@@ -550,7 +552,7 @@ public class WavePlotView extends View  {
         @Override
         public boolean onDown(MotionEvent event) {
             Log.d(DEBUG_TAG, "onDown: " + event.toString() + " " + TAG);
-            if(!mScroller.isFinished()) {
+            if (!mScroller.isFinished()) {
                 mScroller.forceFinished(true);
                 refreshGraph();
             }
@@ -600,12 +602,12 @@ public class WavePlotView extends View  {
             setOffset(0, false);
             refreshGraph();
         }
-    }
+
+    }   // MyGestureListener
 
     private class MyScaleGestureListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-        private static final String DEBUG_TAG = "MyScaleGestureListener";
+        //private static final String DEBUG_TAG = "MyScaleGestureListener";
         int focusSample = 0;
-
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {
@@ -623,7 +625,8 @@ public class WavePlotView extends View  {
             refreshGraph();
             return true;
         }
-    }
+
+    }   // MyScaleGestureListener
 
     private static void log(String msg) {
         Log.v(TAG, msg);

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 // FIXME taken from OpenSLES_AndroidConfiguration.h
 #define SL_ANDROID_KEY_PERFORMANCE_MODE  ((const SLchar*) "androidPerformanceMode")
 
@@ -30,20 +29,37 @@
 #include <cmath>
 #include "sles.h"
 #include "audio_utils/atomic.h"
-#include <stdio.h>
-#include <assert.h>
+#include "byte_buffer.h"
 #include <unistd.h>
 #include <string.h>
 
-int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
+static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
+        int performanceMode,
+        int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
+        short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
+static int slesDestroyServer(sles_data *pSles);
+
+static void initBufferStats(bufferStats *stats);
+static void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats,
+        callbackTimeStamps *timeStamps, short expectedBufferPeriod);
+static bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBufferPeriod);
+static void recordTimeStamp(callbackTimeStamps *timeStamps,
+        int64_t callbackDuration, int64_t timeStamp);
+
+int slesComputeDefaultSettings(int /*performanceMode*/, int* /*samplingRate*/,
+            int* /*playerBufferFrameCount*/, int* /*recorderBufferFrameCount*/) {
+    // For OpenSL ES, these parameters can be determined by NativeAudioThread itself.
+    return STATUS_FAIL;
+}
+
+int slesInit(void ** ppCtx, int samplingRate, int frameCount, int micSource,
              int performanceMode,
              int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
              short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames) {
-    int status = SLES_FAIL;
+    sles_data ** ppSles = (sles_data**) ppCtx;
+    int status = STATUS_FAIL;
     if (ppSles != NULL) {
-        sles_data * pSles = (sles_data*) malloc(sizeof(sles_data));
-
-        memset(pSles, 0, sizeof(sles_data));
+        sles_data * pSles = (sles_data*) calloc(1, sizeof(sles_data));
 
         SLES_PRINTF("pSles malloc %zu bytes at %p", sizeof(sles_data), pSles);
         //__android_log_print(ANDROID_LOG_INFO, "sles_jni",
@@ -63,8 +79,9 @@ int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSourc
 
     return status;
 }
-int slesDestroy(sles_data ** ppSles) {
-    int status = SLES_FAIL;
+int slesDestroy(void ** ppCtx) {
+    sles_data ** ppSles = (sles_data**)ppCtx;
+    int status = STATUS_FAIL;
     if (ppSles != NULL) {
         slesDestroyServer(*ppSles);
 
@@ -74,20 +91,22 @@ int slesDestroy(sles_data ** ppSles) {
             free(*ppSles);
             *ppSles = 0;
         }
-        status = SLES_SUCCESS;
+        status = STATUS_SUCCESS;
     }
     return status;
 }
 
-#define ASSERT_EQ(x, y) do { if ((x) == (y)) ; else { fprintf(stderr, "0x%x != 0x%x\n", \
-    (unsigned) (x), (unsigned) (y)); assert((x) == (y)); } } while (0)
+#define ASSERT(x) do { if(!(x)) { __android_log_assert("assert", "sles_jni", \
+                    "ASSERTION FAILED: " #x); } } while (0)
+#define ASSERT_EQ(x, y) do { if ((x) == (y)) ; else __android_log_assert("assert", "sles_jni", \
+                    "ASSERTION FAILED: 0x%x != 0x%x\n", (unsigned) (x), (unsigned) (y)); } while (0)
 
 // Called after audio recorder fills a buffer with data, then we can read from this filled buffer
 static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void *context) {
     sles_data *pSles = (sles_data*) context;
     if (pSles != NULL) {
-        collectBufferPeriod(&pSles->recorderBufferStats, NULL /*fdpStats*/, &pSles->recorderTimeStamps,
-                            pSles->expectedBufferPeriod);
+        collectBufferPeriod(&pSles->recorderBufferStats, NULL /*fdpStats*/,
+                            &pSles->recorderTimeStamps, pSles->expectedBufferPeriod);
 
         //__android_log_print(ANDROID_LOG_INFO, "sles_jni", "in recorderCallback");
         SLresult result;
@@ -95,9 +114,9 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
         //ee  SLES_PRINTF("<R");
 
         // We should only be called when a recording buffer is done
-        assert(pSles->rxFront <= pSles->rxBufCount);
-        assert(pSles->rxRear <= pSles->rxBufCount);
-        assert(pSles->rxFront != pSles->rxRear);
+        ASSERT(pSles->rxFront <= pSles->rxBufCount);
+        ASSERT(pSles->rxRear <= pSles->rxBufCount);
+        ASSERT(pSles->rxFront != pSles->rxRear);
         char *buffer = pSles->rxBuffers[pSles->rxFront]; //pSles->rxBuffers stores the data recorded
 
 
@@ -136,7 +155,8 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
             }
         } else if (pSles->testType == TEST_TYPE_BUFFER_PERIOD) {
             if (pSles->fifo2Buffer != NULL) {
-                ssize_t actual = byteBuffer_write(pSles, buffer, (size_t) pSles->bufSizeInFrames);
+                ssize_t actual = byteBuffer_write(pSles->byteBufferPtr, pSles->byteBufferLength,
+                        buffer, (size_t) pSles->bufSizeInFrames, pSles->channels);
 
                 //FIXME should log errors using other methods instead of printing to terminal
                 if (actual != (ssize_t) pSles->bufSizeInFrames) {
@@ -159,7 +179,7 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
         if (rxRearNext > pSles->rxBufCount) {
             rxRearNext = 0;
         }
-        assert(rxRearNext != pSles->rxFront);
+        ASSERT(rxRearNext != pSles->rxFront);
         pSles->rxBuffers[pSles->rxRear] = buffer;
         pSles->rxRear = rxRearNext;
 
@@ -171,47 +191,9 @@ static void recorderCallback(SLAndroidSimpleBufferQueueItf caller __unused, void
 }
 
 
-// Write "count" amount of short from buffer to pSles->byteBufferPtr. This byteBuffer will read by
-// java code.
-ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count) {
-    // bytebufferSize is in byte
-    int32_t rear; // rear should not exceed 2^31 - 1, or else overflow will happen
-    memcpy(&rear, (char *) (pSles->byteBufferPtr + pSles->byteBufferLength - 4), sizeof(rear));
-
-    size_t frameSize = pSles->channels * sizeof(short); // only one channel
-    int32_t maxLengthInShort = (pSles->byteBufferLength - 4) / frameSize;
-    // mask the upper bits to get the correct position in the pipe
-    int32_t tempRear = rear & (maxLengthInShort - 1);
-    size_t part1 = maxLengthInShort - tempRear;
-
-    if (part1 > count) {
-        part1 = count;
-    }
-
-    if (part1 > 0) {
-        memcpy(pSles->byteBufferPtr + (tempRear * frameSize), buffer,
-               part1 * frameSize);
-
-        size_t part2 = count - part1;
-        if (part2 > 0) {
-            memcpy(pSles->byteBufferPtr, (buffer + (part1 * frameSize)),
-                   part2 * frameSize);
-        }
-
-        //TODO do we need something similar to the below function call?
-        //android_atomic_release_store(audio_utils_fifo_sum(fifo, fifo->mRear, availToWrite),
-        //        &fifo->mRear);
-    }
-
-    // increase value of rear
-    int32_t* rear2 = (int32_t *) (pSles->byteBufferPtr + pSles->byteBufferLength - 4);
-    *rear2 += count;
-    return count;
-}
-
 // Calculate nanosecond difference between two timespec structs from clock_gettime(CLOCK_MONOTONIC)
 // tv_sec [0, max time_t] , tv_nsec [0, 999999999]
-int64_t diffInNano(struct timespec previousTime, struct timespec currentTime) {
+static int64_t diffInNano(struct timespec previousTime, struct timespec currentTime) {
     return (int64_t) (currentTime.tv_sec - previousTime.tv_sec) * (int64_t) NANOS_PER_SECOND +
             currentTime.tv_nsec - previousTime.tv_nsec;
 }
@@ -227,9 +209,9 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         //ee  SLES_PRINTF("<P");
 
         // Get the buffer that just finished playing
-        assert(pSles->txFront <= pSles->txBufCount);
-        assert(pSles->txRear <= pSles->txBufCount);
-        assert(pSles->txFront != pSles->txRear);
+        ASSERT(pSles->txFront <= pSles->txBufCount);
+        ASSERT(pSles->txRear <= pSles->txBufCount);
+        ASSERT(pSles->txFront != pSles->txRear);
         char *buffer = pSles->txBuffers[pSles->txFront];
         if (++pSles->txFront > pSles->txBufCount) {
             pSles->txFront = 0;
@@ -244,7 +226,8 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
                 if (availToRead < pSles->bufSizeInFrames * 2) {
                     break;
                 }
-                ssize_t actual = audio_utils_fifo_read(&pSles->fifo, buffer, pSles->bufSizeInFrames);
+                ssize_t actual = audio_utils_fifo_read(&pSles->fifo, buffer,
+                        pSles->bufSizeInFrames);
                 if (actual > 0) {
                     discardedInputFrames += actual;
                 }
@@ -327,13 +310,13 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
 
         // Update our model of the player queue
-        assert(pSles->txFront <= pSles->txBufCount);
-        assert(pSles->txRear <= pSles->txBufCount);
+        ASSERT(pSles->txFront <= pSles->txBufCount);
+        ASSERT(pSles->txRear <= pSles->txBufCount);
         SLuint32 txRearNext = pSles->txRear + 1;
         if (txRearNext > pSles->txBufCount) {
             txRearNext = 0;
         }
-        assert(txRearNext != pSles->txFront);
+        ASSERT(txRearNext != pSles->txFront);
         pSles->txBuffers[pSles->txRear] = buffer;
         pSles->txRear = txRearNext;
 
@@ -341,7 +324,7 @@ static void playerCallback(SLBufferQueueItf caller __unused, void *context) {
 }
 
 // Used to set initial values for the bufferStats struct before values can be recorded.
-void initBufferStats(bufferStats *stats) {
+static void initBufferStats(bufferStats *stats) {
     stats->buffer_period = new int[RANGE](); // initialized to zeros
     stats->previous_time = {0,0};
     stats->current_time = {0,0};
@@ -356,8 +339,8 @@ void initBufferStats(bufferStats *stats) {
 
 // Called in the beginning of playerCallback() to collect the interval between each callback.
 // fdpStats is either NULL or a pointer to the buffer statistics for the full-duplex partner.
-void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats, callbackTimeStamps *timeStamps,
-                         short expectedBufferPeriod) {
+static void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats,
+        callbackTimeStamps *timeStamps, short expectedBufferPeriod) {
     clock_gettime(CLOCK_MONOTONIC, &(stats->current_time));
 
     if (timeStamps->startTime.tv_sec == 0 && timeStamps->startTime.tv_nsec == 0) {
@@ -385,8 +368,8 @@ void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats, callbackTime
 
 // Records an outlier given the duration in nanoseconds and the number of nanoseconds
 // between it and the start of the test.
-void recordTimeStamp(callbackTimeStamps *timeStamps,
-                     int64_t callbackDuration, int64_t timeStamp) {
+static void recordTimeStamp(callbackTimeStamps *timeStamps,
+        int64_t callbackDuration, int64_t timeStamp) {
     if (timeStamps->exceededCapacity) {
         return;
     }
@@ -403,7 +386,7 @@ void recordTimeStamp(callbackTimeStamps *timeStamps,
     }
 }
 
-void atomicSetIfGreater(volatile int32_t *addr, int32_t val) {
+static void atomicSetIfGreater(volatile int32_t *addr, int32_t val) {
     // TODO: rewrite this to avoid the need for unbounded spinning
     int32_t old;
     do {
@@ -413,7 +396,7 @@ void atomicSetIfGreater(volatile int32_t *addr, int32_t val) {
 }
 
 // Updates the stats being collected about buffer periods. Returns true if this is an outlier.
-bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBufferPeriod) {
+static bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBufferPeriod) {
     stats->measurement_count++;
 
     // round up to nearest millisecond
@@ -449,11 +432,11 @@ bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBuf
     return diff_in_milli > expectedBufferPeriod + LATE_CALLBACK_OUTLIER_THRESHOLD;
 }
 
-int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
-                     int performanceMode,
-                     int testType, double frequency1, char *byteBufferPtr, int byteBufferLength,
-                     short *loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames) {
-    int status = SLES_FAIL;
+static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
+        int performanceMode,
+        int testType, double frequency1, char *byteBufferPtr, int byteBufferLength,
+        short *loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames) {
+    int status = STATUS_FAIL;
 
     if (pSles != NULL) {
 
@@ -534,12 +517,12 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         // Initialize free buffers
         pSles->freeBuffers = (char **) calloc(pSles->freeBufCount + 1, sizeof(char *));
-        SLES_PRINTF("  calloc freeBuffers %zu bytes at %p",pSles->freeBufCount + 1,
+        SLES_PRINTF("  calloc freeBuffers %llu bytes at %p", (long long)pSles->freeBufCount + 1,
                     pSles->freeBuffers);
         unsigned j;
         for (j = 0; j < pSles->freeBufCount; ++j) {
             pSles->freeBuffers[j] = (char *) malloc(pSles->bufSizeInBytes);
-            SLES_PRINTF(" buff%d malloc %zu bytes at %p",j, pSles->bufSizeInBytes,
+            SLES_PRINTF(" buff%d malloc %llu bytes at %p",j, (long long)pSles->bufSizeInBytes,
                         pSles->freeBuffers[j]);
         }
         pSles->freeFront = 0;
@@ -548,13 +531,15 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
         // Initialize record queue
         pSles->rxBuffers = (char **) calloc(pSles->rxBufCount + 1, sizeof(char *));
-        SLES_PRINTF("  calloc rxBuffers %zu bytes at %p",pSles->rxBufCount + 1, pSles->rxBuffers);
+        SLES_PRINTF("  calloc rxBuffers %llu bytes at %p", (long long)pSles->rxBufCount + 1,
+                pSles->rxBuffers);
         pSles->rxFront = 0;
         pSles->rxRear = 0;
 
         // Initialize play queue
         pSles->txBuffers = (char **) calloc(pSles->txBufCount + 1, sizeof(char *));
-        SLES_PRINTF("  calloc txBuffers %zu bytes at %p",pSles->txBufCount + 1, pSles->txBuffers);
+        SLES_PRINTF("  calloc txBuffers %llu bytes at %p", (long long)pSles->txBufCount + 1,
+                pSles->txBuffers);
         pSles->txFront = 0;
         pSles->txRear = 0;
 
@@ -668,8 +653,6 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         result = (*engineEngine)->CreateAudioPlayer(engineEngine, &(pSles->playerObject),
                 &audiosrc, &audiosnk, 2, ids_tx, flags_tx);
         if (SL_RESULT_CONTENT_UNSUPPORTED == result) {
-            fprintf(stderr, "Could not create audio player (result %x), check sample rate\n",
-                    result);
             SLES_PRINTF("ERROR: Could not create audio player (result %x), check sample rate\n",
                                                      result);
             goto cleanup;
@@ -710,7 +693,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         for (j = 0; j < pSles->txBufCount; ++j) {
 
             // allocate a free buffer
-            assert(pSles->freeFront != pSles->freeRear);
+            ASSERT(pSles->freeFront != pSles->freeRear);
             char *buffer = pSles->freeBuffers[pSles->freeFront];
             if (++pSles->freeFront > pSles->freeBufCount) {
                 pSles->freeFront = 0;
@@ -721,7 +704,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
             if (txRearNext > pSles->txBufCount) {
                 txRearNext = 0;
             }
-            assert(txRearNext != pSles->txFront);
+            ASSERT(txRearNext != pSles->txFront);
             pSles->txBuffers[pSles->txRear] = buffer;
             pSles->txRear = txRearNext;
             result = (*(pSles->playerBufferQueue))->Enqueue(pSles->playerBufferQueue,
@@ -758,9 +741,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
             result = (*engineEngine)->CreateAudioRecorder(engineEngine, &(pSles->recorderObject),
                     &audiosrc, &audiosnk, 2, ids_rx, flags_rx);
             if (SL_RESULT_SUCCESS != result) {
-                fprintf(stderr, "Could not create audio recorder (result %x), "
-                        "check sample rate and channel count\n", result);
-                status = SLES_FAIL;
+                status = STATUS_FAIL;
 
                 SLES_PRINTF("ERROR: Could not create audio recorder (result %x), "
                              "check sample rate and channel count\n", result);
@@ -814,7 +795,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
         for (j = 0; j < pSles->rxBufCount; ++j) {
 
             // allocate a free buffer
-            assert(pSles->freeFront != pSles->freeRear);
+            ASSERT(pSles->freeFront != pSles->freeRear);
             char *buffer = pSles->freeBuffers[pSles->freeFront];
             if (++pSles->freeFront > pSles->freeBufCount) {
                 pSles->freeFront = 0;
@@ -825,7 +806,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
             if (rxRearNext > pSles->rxBufCount) {
                 rxRearNext = 0;
             }
-            assert(rxRearNext != pSles->rxFront);
+            ASSERT(rxRearNext != pSles->rxFront);
             pSles->rxBuffers[pSles->rxRear] = buffer;
             pSles->rxRear = rxRearNext;
             result = (*(pSles->recorderBufferQueue))->Enqueue(pSles->recorderBufferQueue,
@@ -840,7 +821,7 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 
 
         // Tear down the objects and exit
-        status = SLES_SUCCESS;
+        status = STATUS_SUCCESS;
         cleanup:
 
         SLES_PRINTF("Finished initialization with status: %d", status);
@@ -852,8 +833,9 @@ int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int mic
 }
 
 // Read data from fifo2Buffer and store into pSamples.
-int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
-    //int status = SLES_FAIL;
+int slesProcessNext(void *pCtx, double *pSamples, long maxSamples) {
+    //int status = STATUS_FAIL;
+    sles_data *pSles = (sles_data*)pCtx;
 
     SLES_PRINTF("slesProcessNext: pSles = %p, currentSample: %p,  maxSamples = %ld",
                 pSles, pSamples, maxSamples);
@@ -915,8 +897,8 @@ int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples) {
 }
 
 
-int slesDestroyServer(sles_data *pSles) {
-    int status = SLES_FAIL;
+static int slesDestroyServer(sles_data *pSles) {
+    int status = STATUS_FAIL;
 
      SLES_PRINTF("Start slesDestroyServer: pSles = %p", pSles);
 
@@ -1007,38 +989,45 @@ int slesDestroyServer(sles_data *pSles) {
         }
 
 
-        status = SLES_SUCCESS;
+        status = STATUS_SUCCESS;
     }
     SLES_PRINTF("End slesDestroyServer: status = %d", status);
     return status;
 }
 
 
-int* slesGetRecorderBufferPeriod(sles_data *pSles) {
+int* slesGetRecorderBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->recorderBufferStats.buffer_period;
 }
 
-int slesGetRecorderMaxBufferPeriod(sles_data *pSles) {
+int slesGetRecorderMaxBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->recorderBufferStats.max_buffer_period;
 }
 
-int64_t slesGetRecorderVarianceBufferPeriod(sles_data *pSles) {
+int64_t slesGetRecorderVarianceBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->recorderBufferStats.var;
 }
 
-int* slesGetPlayerBufferPeriod(sles_data *pSles) {
+int* slesGetPlayerBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->playerBufferStats.buffer_period;
 }
 
-int slesGetPlayerMaxBufferPeriod(sles_data *pSles) {
+int slesGetPlayerMaxBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->playerBufferStats.max_buffer_period;
 }
 
-int64_t slesGetPlayerVarianceBufferPeriod(sles_data *pSles) {
+int64_t slesGetPlayerVarianceBufferPeriod(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     return pSles->playerBufferStats.var;
 }
 
-int slesGetCaptureRank(sles_data *pSles) {
+int slesGetCaptureRank(void *pCtx) {
+    sles_data *pSles = (sles_data*)pCtx;
     // clear the capture flags since they're being handled now
     int recorderRank = android_atomic_exchange(0, &pSles->recorderBufferStats.captureRank);
     int playerRank = android_atomic_exchange(0, &pSles->playerBufferStats.captureRank);
@@ -1048,4 +1037,16 @@ int slesGetCaptureRank(sles_data *pSles) {
     } else {
         return playerRank;
     }
+}
+
+int slesGetPlayerTimeStampsAndExpectedBufferPeriod(void *pCtx, callbackTimeStamps **ppTSs) {
+    sles_data *pSles = (sles_data*)pCtx;
+    *ppTSs = &pSles->playerTimeStamps;
+    return pSles->expectedBufferPeriod;
+}
+
+int slesGetRecorderTimeStampsAndExpectedBufferPeriod(void *pCtx, callbackTimeStamps **ppTSs) {
+    sles_data *pSles = (sles_data*)pCtx;
+    *ppTSs = &pSles->recorderTimeStamps;
+    return pSles->expectedBufferPeriod;
 }

@@ -33,12 +33,8 @@ public class FFT {
 
     FFT(int FFTSamplingSize) {
         mFFTSamplingSize = FFTSamplingSize;
-        setUpFFT();
-    }
 
-
-    /** This function is only called in constructor to set up variables needed for computing FFT. */
-    private void setUpFFT() {
+        // set up variables needed for computing FFT
         m = (int) (Math.log(mFFTSamplingSize) / Math.log(2));
 
         // Make sure n is a power of 2
@@ -109,4 +105,5 @@ public class FFT {
             }
         }
     }
+
 }

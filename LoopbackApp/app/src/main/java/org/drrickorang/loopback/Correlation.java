@@ -124,8 +124,9 @@ public class Correlation implements Parcelable {
         mDataIsValid = false;
     }
 
-    public void setBlockSize(int blockSize){
-        mBlockSize = clamp(blockSize, Constant.CORRELATION_BLOCK_SIZE_MIN, Constant.CORRELATION_BLOCK_SIZE_MAX);
+    public void setBlockSize(int blockSize) {
+        mBlockSize = clamp(blockSize, Constant.CORRELATION_BLOCK_SIZE_MIN,
+                Constant.CORRELATION_BLOCK_SIZE_MAX);
     }
 
     private boolean downsampleData(double [] data, double [] dataDownsampled, double threshold) {
@@ -200,6 +201,7 @@ public class Correlation implements Parcelable {
      * Returns value if value is within inclusive bounds min through max
      * otherwise returns min or max according to if value is less than or greater than the range
      */
+    // TODO move to audio_utils
     private int clamp(int value, int min, int max) {
 
         if (max < min) throw new UnsupportedOperationException("min must be <= max");
@@ -219,7 +221,7 @@ public class Correlation implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         Bundle bundle = new Bundle();
         bundle.putBoolean("mDataIsValid", mDataIsValid);
-        if(mDataIsValid) {
+        if (mDataIsValid) {
             bundle.putDouble("mEstimatedLatencySamples", mEstimatedLatencySamples);
             bundle.putDouble("mEstimatedLatencyMs", mEstimatedLatencyMs);
             bundle.putDouble("mEstimatedLatencyConfidence", mEstimatedLatencyConfidence);
@@ -233,7 +235,7 @@ public class Correlation implements Parcelable {
     private Correlation(Parcel in) {
         Bundle bundle = in.readBundle(getClass().getClassLoader());
         mDataIsValid = bundle.getBoolean("mDataIsValid");
-        if(mDataIsValid) {
+        if (mDataIsValid) {
             mEstimatedLatencySamples    = bundle.getDouble("mEstimatedLatencySamples");
             mEstimatedLatencyMs         = bundle.getDouble("mEstimatedLatencyMs");
             mEstimatedLatencyConfidence = bundle.getDouble("mEstimatedLatencyConfidence");
@@ -256,4 +258,5 @@ public class Correlation implements Parcelable {
     private static void log(String msg) {
         Log.v(TAG, msg);
     }
+
 }

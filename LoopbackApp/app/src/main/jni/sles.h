@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef _Included_org_drrickorang_loopback_sles
+#define _Included_org_drrickorang_loopback_sles
+
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <pthread.h>
@@ -21,26 +24,12 @@
 #include <jni.h>
 #include <stdbool.h>
 
-#ifndef _Included_org_drrickorang_loopback_sles
-#define _Included_org_drrickorang_loopback_sles
-
 //struct audio_utils_fifo;
 #define SLES_PRINTF(...)  __android_log_print(ANDROID_LOG_INFO, "sles_jni", __VA_ARGS__);
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include <audio_utils/fifo.h>
 
-typedef struct {
-    int* timeStampsMs;          // Array of milliseconds since first callback
-    short* callbackDurations;   // Array of milliseconds between callback and previous callback
-    short index;                // Current write position
-    struct timespec startTime;  // Time of first callback {seconds,nanoseconds}
-    int capacity;               // Total number of callback times/lengths that can be recorded
-    bool exceededCapacity;      // Set only if late callbacks come after array is full
-} callbackTimeStamps;
+#include "loopback_sles.h"
 
 typedef struct {
     int* buffer_period;
@@ -115,60 +104,10 @@ typedef struct {
     short expectedBufferPeriod;
 } sles_data;
 
-#define NANOS_PER_SECOND 1000000000
-#define NANOS_PER_MILLI 1000000
-#define MILLIS_PER_SECOND 1000
-
 // how late in ms a callback must be to trigger a systrace/bugreport
 #define LATE_CALLBACK_CAPTURE_THRESHOLD 4
 #define LATE_CALLBACK_OUTLIER_THRESHOLD 1
 #define BUFFER_PERIOD_DISCARD 10
 #define BUFFER_PERIOD_DISCARD_FULL_DUPLEX_PARTNER 2
 
-enum {
-    SLES_SUCCESS = 0,
-    SLES_FAIL = 1,
-    RANGE = 1002,
-    TEST_TYPE_LATENCY = 222,
-    TEST_TYPE_BUFFER_PERIOD = 223
-} SLES_STATUS_ENUM;
-
-int slesInit(sles_data ** ppSles, int samplingRate, int frameCount, int micSource,
-             int performanceMode,
-             int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-             short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
-
-//note the double pointer to properly free the memory of the structure
-int slesDestroy(sles_data ** ppSles);
-
-
-///full
-int slesFull(sles_data *pSles);
-
-int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, int micSource,
-                     int performanceMode,
-                     int testType, double frequency1, char* byteBufferPtr, int byteBufferLength,
-                     short* loopbackTone, int maxRecordedLateCallbacks, int ignoreFirstFrames);
-int slesProcessNext(sles_data *pSles, double *pSamples, long maxSamples);
-int slesDestroyServer(sles_data *pSles);
-int* slesGetRecorderBufferPeriod(sles_data *pSles);
-int slesGetRecorderMaxBufferPeriod(sles_data *pSles);
-int64_t slesGetRecorderVarianceBufferPeriod(sles_data *pSles);
-int* slesGetPlayerBufferPeriod(sles_data *pSles);
-int slesGetPlayerMaxBufferPeriod(sles_data *pSles);
-int64_t slesGetPlayerVarianceBufferPeriod(sles_data *pSles);
-int slesGetCaptureRank(sles_data *pSles);
-
-void initBufferStats(bufferStats *stats);
-void collectBufferPeriod(bufferStats *stats, bufferStats *fdpStats, callbackTimeStamps *timeStamps,
-                         short expectedBufferPeriod);
-bool updateBufferStats(bufferStats *stats, int64_t diff_in_nano, int expectedBufferPeriod);
-void recordTimeStamp(callbackTimeStamps *timeStamps,
-                     int64_t callbackDuration, int64_t timeStamp);
-
-ssize_t byteBuffer_write(sles_data *pSles, char *buffer, size_t count);
-
-#ifdef __cplusplus
-}
-#endif
 #endif //_Included_org_drrickorang_loopback_sles

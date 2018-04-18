@@ -18,6 +18,7 @@ package org.drrickorang.loopback;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -88,7 +89,8 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         ArrayAdapter<CharSequence> adapterPerformanceMode = ArrayAdapter.createFromResource(this,
                 R.array.performance_mode_array, android.R.layout.simple_spinner_item);
         // Specify the layout to use when the list of choices appears
-        adapterPerformanceMode.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapterPerformanceMode.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item
+                );
         // Apply the adapter to the spinner
         mSpinnerPerformanceMode.setAdapter(adapterPerformanceMode);
         //set current value
@@ -113,16 +115,33 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         //spinner native
         int audioThreadType = getApp().getAudioThreadType();
         mSpinnerAudioThreadType = (Spinner) findViewById(R.id.spinnerAudioThreadType);
-        ArrayAdapter<CharSequence> adapter2 = ArrayAdapter.createFromResource(this,
-                R.array.audioThreadType_array, android.R.layout.simple_spinner_item);
+        ArrayAdapter<CharSequence> adapterThreadType = new ArrayAdapter<CharSequence>(this,
+                android.R.layout.simple_spinner_item,
+                getResources().getTextArray(R.array.audioThreadType_array)) {
+            @Override
+            public boolean isEnabled(int position) {
+                switch (position) {
+                    case Constant.AUDIO_THREAD_TYPE_JAVA: return true;
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES: return getApp().isSafeToUseSles();
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
+                        return getApp().isSafeToUseAAudio();
+                }
+                return false;
+            }
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView mTextView = (TextView)super.getDropDownView(position, convertView, parent);
+                // TODO: Use theme colors
+                mTextView.setTextColor(isEnabled(position) ? Color.BLACK : Color.GRAY);
+                return mTextView;
+            }
+        };
         // Specify the layout to use when the list of choices appears
-        adapter2.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapterThreadType.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // Apply the adapter to the spinner
-        mSpinnerAudioThreadType.setAdapter(adapter2);
+        mSpinnerAudioThreadType.setAdapter(adapterThreadType);
         //set current value
         mSpinnerAudioThreadType.setSelection(audioThreadType, false);
-        if (!getApp().isSafeToUseSles())
-            mSpinnerAudioThreadType.setEnabled(false);
         mSpinnerAudioThreadType.setOnItemSelectedListener(this);
 
         mSpinnerChannelIndex = (Spinner) findViewById(R.id.spinnerChannelIndex);
@@ -180,7 +199,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
                 getApp().setPlayerBufferSizeInBytes(value * Constant.BYTES_PER_FRAME);
                 int audioThreadType = mSpinnerAudioThreadType.getSelectedItemPosition();
                 // in native mode, recorder buffer size = player buffer size
-                if (audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE) {
+                if (audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_SLES) {
                     getApp().setRecorderBufferSizeInBytes(value * Constant.BYTES_PER_FRAME);
                     mRecorderBufferUI.setValue(value);
                 }
@@ -280,9 +299,25 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         finish();
     }
 
+    private boolean canPerformBufferTest() {
+        switch (getApp().getAudioThreadType()) {
+            case Constant.AUDIO_THREAD_TYPE_JAVA:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                return true;
+        }
+        // Buffer test isn't yet implemented for AAudio.
+        return false;
+    }
 
     private void refresh() {
+        mSpinnerMicSource.setEnabled(
+                getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_JAVA ||
+                getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_NATIVE_SLES);
+
+        boolean bufferTestEnabled = canPerformBufferTest();
+        mBufferTestDurationUI.setEnabled(bufferTestEnabled);
         mBufferTestDurationUI.setValue(getApp().getBufferTestDuration());
+        mWavePlotDurationUI.setEnabled(bufferTestEnabled);
         mWavePlotDurationUI.setValue(getApp().getBufferTestWavePlotDuration());
 
         mPlayerBufferUI.setValue(getApp().getPlayerBufferSizeInBytes() / Constant.BYTES_PER_FRAME);
@@ -290,7 +325,8 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
                 getApp().getRecorderBufferSizeInBytes() / Constant.BYTES_PER_FRAME);
 
         mRecorderBufferUI.setEnabled(
-                getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_JAVA);
+                getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_JAVA ||
+                getApp().getAudioThreadType() == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO);
 
         int samplingRate = getApp().getSamplingRate();
         String currentValue = String.valueOf(samplingRate);
@@ -353,6 +389,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         case R.id.spinnerPerformanceMode:
             int performanceMode = mSpinnerPerformanceMode.getSelectedItemPosition() - 1;
             getApp().setPerformanceMode(performanceMode);
+            getApp().computeDefaults();
             setSettingsHaveChanged();
             log("performanceMode:" + performanceMode);
             refresh();
@@ -362,7 +399,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
 
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if (buttonView.getId() == mWavCaptureToggleButton.getId()){
+        if (buttonView.getId() == mWavCaptureToggleButton.getId()) {
             getApp().setCaptureWavsEnabled(isChecked);
         } else if (buttonView.getId() == mSystraceToggleButton.getId()) {
             getApp().setCaptureSysTraceEnabled(isChecked);
@@ -400,7 +437,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
         }
 
         // display pop up window, dismissible with back button
-        popUp.showAtLocation(findViewById(R.id.settingsMainLayout), Gravity.TOP, 0, 0);
+        popUp.showAtLocation((View) findViewById(R.id.settingsMainLayout), Gravity.TOP, 0, 0);
     }
 
         /** Called when the user clicks the button */
@@ -423,7 +460,7 @@ public class SettingsActivity extends Activity implements OnItemSelectedListener
 
 //    private void computeDefaults() {
 //
-////        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA) {
+////        if (getApp().getAudioThreadType() == LoopbackApplication.AUDIO_THREAD_TYPE_JAVA)
 ////            mNumberPickerRecorderBuffer.setEnabled(true);
 ////        else
 ////            mNumberPickerRecorderBuffer.setEnabled(false);

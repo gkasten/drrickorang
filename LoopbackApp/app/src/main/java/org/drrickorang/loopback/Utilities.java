@@ -19,6 +19,7 @@ package org.drrickorang.loopback;
 
 /**
  * This class contains functions that can be reused in different classes.
+ * TODO move to audio_utils
  */
 
 public class Utilities {
@@ -55,4 +56,17 @@ public class Utilities {
         return rounded;
     }
 
+
+    /**
+     * Returns value if value is within inclusive bounds min through max
+     * otherwise returns min or max according to if value is less than or greater than the range
+     */
+    public static int clamp(int value, int min, int max) {
+
+        if (max < min) throw new UnsupportedOperationException("min must be <= max");
+
+        if (value < min) return min;
+        else if (value > max) return max;
+        else return value;
+    }
 }

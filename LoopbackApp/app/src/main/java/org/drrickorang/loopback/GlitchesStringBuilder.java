@@ -30,6 +30,10 @@ import android.widget.TextView;
 public class GlitchesStringBuilder {
     private static final String TAG = "GlitchesStringBuilder";
 
+    private GlitchesStringBuilder() {
+        // not instantiable
+        throw new RuntimeException("not reachable");
+    }
 
     public static String getGlitchString(int fftsamplingsize, int FFTOverlapSamples,
                                          int[] glitchesData, int samplingRate,

@@ -43,6 +43,7 @@ public class BufferPeriod implements Parcelable {
     private int       mMaxBufferPeriod = 0;
 
     private int       mCount = 0;
+    // Must match constant 'RANGE' in jni/loopback.h
     private final int range = 1002; // store counts for 0ms to 1000ms, and for > 1000ms
     private int       mExpectedBufferPeriod = 0;
 
@@ -121,7 +122,7 @@ public class BufferPeriod implements Parcelable {
     }
 
     public void prepareMemberObjects(int maxRecords, int expectedBufferPeriod,
-                                     CaptureHolder captureHolder){
+                                     CaptureHolder captureHolder) {
         mCallbackTimes = new BufferCallbackTimes(maxRecords, expectedBufferPeriod);
         mCaptureHolder = captureHolder;
         mExpectedBufferPeriod = expectedBufferPeriod;
@@ -139,7 +140,7 @@ public class BufferPeriod implements Parcelable {
         return mMaxBufferPeriod;
     }
 
-    public BufferCallbackTimes getCallbackTimes(){
+    public BufferCallbackTimes getCallbackTimes() {
         return mCallbackTimes;
     }
 

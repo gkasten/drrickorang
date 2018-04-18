@@ -12,10 +12,14 @@ model {
         }
         ndk {
             moduleName 'loopback'
-            cppFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString(), "-g"
-            CFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString()
+            // -std=c++11 is required for lb2
+            // -fexceptions is required because otherwise the C++ standard library will be using stderr
+            //              which isn't provided as a function on earlier Android versions (e.g. on KitKat).
+            cppFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString(), "-g", "-std=c++11", "-fexceptions"
+            CFlags.addAll "-I${project.rootDir}/app/src/main/jni".toString(), "-std=c11"
+            stl 'c++_static'
 
-            ldLibs.addAll 'OpenSLES', 'log'
+            ldLibs.addAll 'OpenSLES', 'log', 'dl', 'android'
         }
         buildTypes {
             release {

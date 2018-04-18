@@ -26,7 +26,8 @@ import java.util.Iterator;
  * Maintains and returns pairs of callback timestamps (in milliseconds since beginning of test) and
  * lengths (milliseconds between a callback and the previous callback).
  */
-public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferCallback>, Parcelable {
+public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferCallback>,
+        Parcelable {
     private final int[] mTimeStamps;
     private final short[] mCallbackDurations;
     private final short mExpectedBufferPeriod;
@@ -166,4 +167,5 @@ public class BufferCallbackTimes implements Iterable<BufferCallbackTimes.BufferC
             callbackDuration = cd;
         }
     }
+
 }

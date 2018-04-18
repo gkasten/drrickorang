@@ -20,10 +20,6 @@ import android.app.Application;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioRecord;
-import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
@@ -38,10 +34,9 @@ public class LoopbackApplication extends Application {
     private static final String TAG = "LoopbackApplication";
 
     // here defines all the initial setting values, some get modified in ComputeDefaults()
-    private int mSamplingRate = 48000;
+    private TestSettings mSettings = new TestSettings(48000 /*samplingRate*/,
+            0 /*playerBufferSizeInBytes*/, 0 /*recorderBuffSizeInBytes*/);
     private int mChannelIndex = -1;
-    private int mPlayerBufferSizeInBytes = 0; // for both native and java
-    private int mRecorderBuffSizeInBytes = 0; // for both native and java
     private int mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA; //0:Java, 1:Native (JNI)
     private int mMicSource = 3; //maps to MediaRecorder.AudioSource.VOICE_RECOGNITION;
     private int mPerformanceMode = -1; // DEFAULT
@@ -56,8 +51,11 @@ public class LoopbackApplication extends Application {
     private int mNumStateCaptures = Constant.DEFAULT_NUM_CAPTURES;
 
     public void setDefaults() {
+        // Prefer SLES until buffer test is implemented for AAudio.
         if (isSafeToUseSles()) {
-            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE;
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE_SLES;
+        } else if (isSafeToUseAAudio()) {
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO;
         } else {
             mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA;
         }
@@ -66,11 +64,11 @@ public class LoopbackApplication extends Application {
     }
 
     int getSamplingRate() {
-        return mSamplingRate;
+        return mSettings.getSamplingRate();
     }
 
     void setSamplingRate(int samplingRate) {
-        mSamplingRate = clamp(samplingRate, Constant.SAMPLING_RATE_MIN, Constant.SAMPLING_RATE_MAX);
+        mSettings.setSamplingRate(samplingRate);
     }
 
     int getChannelIndex() { return mChannelIndex; }
@@ -83,9 +81,12 @@ public class LoopbackApplication extends Application {
 
 
     void setAudioThreadType(int audioThreadType) {
-        if (isSafeToUseSles() && audioThreadType != Constant.AUDIO_THREAD_TYPE_JAVA) {
-            //safe to use native and Java thread not selected
-            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE;
+        if (isSafeToUseAAudio() && audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO) {
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO;
+        } else if (isSafeToUseSles() && (
+                        audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_SLES ||
+                        audioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO)) {
+            mAudioThreadType = Constant.AUDIO_THREAD_TYPE_NATIVE_SLES;
         } else {
             mAudioThreadType = Constant.AUDIO_THREAD_TYPE_JAVA;
         }
@@ -130,7 +131,7 @@ public class LoopbackApplication extends Application {
                 }
                 break;
             }
-        } else if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE) {
+        } else if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE_SLES) {
             // FIXME taken from OpenSLES_AndroidConfiguration.h
             switch (source) {
             default:
@@ -161,6 +162,7 @@ public class LoopbackApplication extends Application {
                 }
                 break;
             }
+            // Doesn't matter for AUDIO_THREAD_TYPE_NATIVE_AAUDIO.
         }
 
         return mappedSource;
@@ -219,7 +221,9 @@ public class LoopbackApplication extends Application {
     }
 
 
-    void setPerformanceMode(int performanceMode) { mPerformanceMode = performanceMode; }
+    void setPerformanceMode(int performanceMode) {
+        mPerformanceMode = performanceMode;
+    }
 
     int getIgnoreFirstFrames() {
         return mIgnoreFirstFrames;
@@ -230,24 +234,21 @@ public class LoopbackApplication extends Application {
     }
 
     int getPlayerBufferSizeInBytes() {
-        return mPlayerBufferSizeInBytes;
+        return mSettings.getPlayerBufferSizeInBytes();
     }
 
-
     void setPlayerBufferSizeInBytes(int playerBufferSizeInBytes) {
-        mPlayerBufferSizeInBytes = clamp(playerBufferSizeInBytes, Constant.PLAYER_BUFFER_FRAMES_MIN,
-                Constant.PLAYER_BUFFER_FRAMES_MAX);
+        mSettings.setPlayerBufferSizeInBytes(playerBufferSizeInBytes);
     }
 
 
     int getRecorderBufferSizeInBytes() {
-        return mRecorderBuffSizeInBytes;
+        return mSettings.getRecorderBufferSizeInBytes();
     }
 
 
     void setRecorderBufferSizeInBytes(int recorderBufferSizeInBytes) {
-        mRecorderBuffSizeInBytes = clamp(recorderBufferSizeInBytes,
-                Constant.RECORDER_BUFFER_FRAMES_MIN, Constant.RECORDER_BUFFER_FRAMES_MAX);
+        mSettings.setRecorderBufferSizeInBytes(recorderBufferSizeInBytes);
     }
 
 
@@ -257,7 +258,7 @@ public class LoopbackApplication extends Application {
 
 
     void setBufferTestDuration(int bufferTestDurationInSeconds) {
-        mBufferTestDurationInSeconds = clamp(bufferTestDurationInSeconds,
+        mBufferTestDurationInSeconds = Utilities.clamp(bufferTestDurationInSeconds,
                 Constant.BUFFER_TEST_DURATION_SECONDS_MIN,
                 Constant.BUFFER_TEST_DURATION_SECONDS_MAX);
     }
@@ -269,7 +270,7 @@ public class LoopbackApplication extends Application {
 
 
     void setBufferTestWavePlotDuration(int bufferTestWavePlotDurationInSeconds) {
-        mBufferTestWavePlotDurationInSeconds = clamp(bufferTestWavePlotDurationInSeconds,
+        mBufferTestWavePlotDurationInSeconds = Utilities.clamp(bufferTestWavePlotDurationInSeconds,
                 Constant.BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MIN,
                 Constant.BUFFER_TEST_WAVE_PLOT_DURATION_SECONDS_MAX);
     }
@@ -279,15 +280,16 @@ public class LoopbackApplication extends Application {
     }
 
     void setNumberOfLoadThreads(int numberOfLoadThreads) {
-        mNumberOfLoadThreads = clamp(numberOfLoadThreads, Constant.MIN_NUM_LOAD_THREADS,
+        mNumberOfLoadThreads = Utilities.clamp(numberOfLoadThreads, Constant.MIN_NUM_LOAD_THREADS,
                 Constant.MAX_NUM_LOAD_THREADS);
     }
 
-    public void setNumberOfCaptures (int num){
-        mNumStateCaptures = clamp(num, Constant.MIN_NUM_CAPTURES, Constant.MAX_NUM_CAPTURES);
+    public void setNumberOfCaptures (int num) {
+        mNumStateCaptures = Utilities.clamp(num, Constant.MIN_NUM_CAPTURES,
+                Constant.MAX_NUM_CAPTURES);
     }
 
-    public void setCaptureSysTraceEnabled (boolean enabled){
+    public void setCaptureSysTraceEnabled (boolean enabled) {
         mCaptureSysTraceEnabled = enabled;
     }
 
@@ -295,7 +297,7 @@ public class LoopbackApplication extends Application {
         mCaptureBugreportEnabled = enabled;
     }
 
-    public void setCaptureWavsEnabled (boolean enabled){
+    public void setCaptureWavsEnabled(boolean enabled) {
         mCaptureWavSnippetsEnabled = enabled;
     }
 
@@ -327,60 +329,27 @@ public class LoopbackApplication extends Application {
         return mCaptureWavSnippetsEnabled;
     }
 
-    /**
-     * Returns value if value is within inclusive bounds min through max
-     * otherwise returns min or max according to if value is less than or greater than the range
-     */
-    private int clamp(int value, int min, int max) {
-
-        if (max < min) throw new UnsupportedOperationException("min must be <= max");
-
-        if (value < min) return min;
-        else if (value > max) return max;
-        else return value;
-    }
-
 
     /** Compute Default audio settings. */
     public void computeDefaults() {
-        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
-        setSamplingRate(samplingRate);
-
-        if (mAudioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE) {
-
-            int minBufferSizeInFrames;
-            if (isSafeToUseGetProperty()) {
-                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-                minBufferSizeInFrames = Integer.parseInt(value);
-            } else {
-                minBufferSizeInFrames = 1024;
-                log("On button test micSource Name: ");
-            }
-            int minBufferSizeInBytes = Constant.BYTES_PER_FRAME * minBufferSizeInFrames;
-
-            setPlayerBufferSizeInBytes(minBufferSizeInBytes);
-            setRecorderBufferSizeInBytes(minBufferSizeInBytes);
+        if (mAudioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_SLES ||
+            mAudioThreadType == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO) {
+            mSettings = NativeAudioThread.computeDefaultSettings(
+                    this, mAudioThreadType, mPerformanceMode);
         } else {
-            int minPlayerBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
-                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            setPlayerBufferSizeInBytes(minPlayerBufferSizeInBytes);
-
-            int minRecorderBufferSizeInBytes =  AudioRecord.getMinBufferSize(samplingRate,
-                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            setRecorderBufferSizeInBytes(minRecorderBufferSizeInBytes);
+            mSettings = LoopbackAudioThread.computeDefaultSettings();
         }
-
     }
 
 
     String getSystemInfo() {
         String info = null;
         try {
-            int versionCode = getApplicationContext().getPackageManager().getPackageInfo(
-                              getApplicationContext().getPackageName(), 0).versionCode;
-            String versionName = getApplicationContext().getPackageManager().getPackageInfo(
-                                 getApplicationContext().getPackageName(), 0).versionName;
+            Context context = getApplicationContext();
+            android.content.pm.PackageInfo packageInfo = context.getPackageManager().getPackageInfo(
+                    context.getPackageName(), 0);
+            int versionCode = packageInfo.versionCode;
+            String versionName = packageInfo.versionName;
             info = "App ver. " + versionCode + "." + versionName + " | " + Build.MODEL + " | " +
                     Build.FINGERPRINT;
         } catch (PackageManager.NameNotFoundException e) {
@@ -391,15 +360,14 @@ public class LoopbackApplication extends Application {
     }
 
 
-    /** Check if it's safe to use Open SLES. */
-    boolean isSafeToUseSles() {
-        return  Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD;
+    /** Check if it's safe to use OpenSL ES. */
+    static boolean isSafeToUseSles() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD;
     }
 
-
-    /** Check if it's safe to use getProperty(). */
-    boolean isSafeToUseGetProperty() {
-        return  Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1;
+    /** Check if it's safe to use AAudio. */
+    static boolean isSafeToUseAAudio() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
     }
 
 

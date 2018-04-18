@@ -36,7 +36,7 @@ public class LoadThread extends Thread {
         log("Entering load thread");
         long count = 0;
         mIsRunning = true;
-        while(mIsRunning) {
+        while (mIsRunning) {
             count++;
         }
 

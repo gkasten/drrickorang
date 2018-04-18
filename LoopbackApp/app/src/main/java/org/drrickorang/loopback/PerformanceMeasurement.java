@@ -20,8 +20,8 @@ import android.util.Log;
 
 
 /**
- * This class is used to automatically the audio performance according to recorder/player buffer
- * period.
+ * This class is used to automatically measure the audio performance according to recorder/player
+ * buffer period.
  */
 
 public class PerformanceMeasurement {
@@ -109,7 +109,7 @@ public class PerformanceMeasurement {
      * Determine percent of Buffer Period Callbacks that occurred at the expected time
      * Returns a value between 0 and 1
      */
-    public float percentBufferPeriodsAtExpected() {
+    public double percentBufferPeriodsAtExpected() {
         int occurrenceNearExpectedBufferPeriod = 0;
         // indicate how many buckets around mExpectedBufferPeriod do we want to add to the count
         int acceptableOffset = 2;
@@ -119,7 +119,7 @@ public class PerformanceMeasurement {
         for (int i = start; i <= end; i++) {
             occurrenceNearExpectedBufferPeriod += mBufferData[i];
         }
-        return ((float) occurrenceNearExpectedBufferPeriod) / mTotalOccurrence;
+        return ((double) occurrenceNearExpectedBufferPeriod) / mTotalOccurrence;
     }
 
 
@@ -222,6 +222,7 @@ public class PerformanceMeasurement {
     /**
      * Calculate the mean of int array "data". In this array, data[i] = x means there are
      * x occurrences of value i.
+     * TODO move to audio_utils
      */
     private double computeMean(int[] data) {
         int count = 0;
@@ -246,6 +247,7 @@ public class PerformanceMeasurement {
     /**
      * Calculate the standard deviation of int array "data". In this array, data[i] = x means
      * there are x occurrences of value i.
+     * TODO move to audio_utils
      */
     private double computeStandardDeviation(int[] data, double mean) {
         double sumDeviation = 0;

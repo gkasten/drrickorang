@@ -34,7 +34,8 @@ int32_t android_atomic_exchange(int32_t value, volatile const int32_t* addr) {
     return atomic_exchange(a, value);
 }
 
-bool android_atomic_compare_exchange(int32_t* expect, int32_t desire, volatile const int32_t* addr) {
+bool android_atomic_compare_exchange(int32_t* expect, int32_t desire,
+        volatile const int32_t* addr) {
     volatile atomic_int_least32_t* a = (volatile atomic_int_least32_t*) addr;
     return atomic_compare_exchange_weak(a, expect, desire);
 }

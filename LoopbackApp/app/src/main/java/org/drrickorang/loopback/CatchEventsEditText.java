@@ -72,4 +72,5 @@ public class CatchEventsEditText extends EditText implements TextView.OnEditorAc
         }
         return super.onKeyPreIme(keyCode, event);
     }
+
 }

@@ -28,7 +28,6 @@ import android.widget.TextView;
 
 public class AboutActivity extends Activity {
 
-
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 

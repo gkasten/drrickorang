@@ -49,7 +49,7 @@ public class WaveDataRingBuffer {
         return mLoadedDeck.getWaveRecord();
     }
 
-    private void SwapDecks() {
+    private void swapDecks() {
         WaveDeck temp = mShelvedDeck;
         mShelvedDeck = mLoadedDeck;
         mLoadedDeck = temp;
@@ -61,7 +61,7 @@ public class WaveDataRingBuffer {
      **/
     public synchronized ReadableWaveDeck getWaveDeck() {
         if (!mShelvedDeck.isBeingRead()) {
-            SwapDecks();
+            swapDecks();
             mShelvedDeck.readyForRead();
             mLoadedDeck.reset();
             return mShelvedDeck;
@@ -143,12 +143,12 @@ public class WaveDataRingBuffer {
         }
 
         /** Make buffer available for new recording **/
-        public void reset() {
+        private void reset() {
             mIndex = 0;
             mArrayFull = false;
         }
 
-        public boolean isBeingRead() {
+        private boolean isBeingRead() {
             return mIsBeingRead;
         }
 
@@ -170,4 +170,5 @@ public class WaveDataRingBuffer {
             return successfulWrite;
         }
     }
+
 }

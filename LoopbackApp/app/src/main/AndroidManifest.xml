@@ -23,8 +23,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.drrickorang.loopback"
 
-    android:versionCode="20"
-    android:versionName="0.9.77">
+    android:versionCode="25"
+    android:versionName="0.10.2">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>

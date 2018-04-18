@@ -10,6 +10,7 @@ SYSTRACE_SUFFIX=".trace";
 BUGREPORT_SUFFIX="_bugreport.txt.gz";
 TERMINATE_SIGNAL="QUIT";
 SIGNAL_FILE="/sdcard/Loopback/loopback_signal"
+APP="-a org.drrickorang.loopback"
 TRACE_CATEGORIES="sched audio $@"
 BUFFER_KB="8000"
 
@@ -25,7 +26,7 @@ function exitListener {
 
 # Begin an asynchronous systrace writing into a circular buffer of size BUFFER_KB
 echo "LOOPBACK LISTENER: starting trace"
-atrace --async_start -z -c -b $BUFFER_KB $TRACE_CATEGORIES
+atrace --async_start -z -c -b $BUFFER_KB $APP $TRACE_CATEGORIES
 echo " "
 
 # Remove signal file erroneously left behind from previous tests
@@ -50,7 +51,7 @@ do
                 case $filename in
                 *$SYSTRACE_SUFFIX)
                     echo "LOOPBACK LISTENER: dumping systrace to file $filename"
-                    atrace --async_dump -z -c -b $BUFFER_KB $TRACE_CATEGORIES > $filename
+                    atrace --async_dump -z -c -b $BUFFER_KB $APP $TRACE_CATEGORIES > $filename
                     ;;
 
                 *$BUGREPORT_SUFFIX)

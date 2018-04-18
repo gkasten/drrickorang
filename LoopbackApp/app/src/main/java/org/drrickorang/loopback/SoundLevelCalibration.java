@@ -52,15 +52,22 @@ class SoundLevelCalibration {
         }
     }
 
-    SoundLevelCalibration(int samplingRate, int playerBufferSizeInBytes,
-                                 int recorderBufferSizeInBytes, int micSource, int performanceMode, Context context) {
+    SoundLevelCalibration(int threadType, int samplingRate, int playerBufferSizeInBytes,
+            int recorderBufferSizeInBytes, int micSource, int performanceMode, Context context) {
 
         // TODO: Allow capturing wave data without doing glitch detection.
         CaptureHolder captureHolder = new CaptureHolder(0, "", false, false, false, context,
                 samplingRate);
+        // Workaround for b/68802649 (input level with AAudio is 3dB less than with OpenSL ES).
+        // Since the output level for both backends is the same, when calibrating with AAudio
+        // the suggested volume level will typically be 1 step higher and will cause clipping.
+        if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO) {
+            threadType = Constant.AUDIO_THREAD_TYPE_NATIVE_SLES;
+        }
+        // FIXME assumes native thread type
         // TODO: Run for less than 1 second.
-        mNativeAudioThread = new NativeAudioThread(samplingRate, playerBufferSizeInBytes,
-                recorderBufferSizeInBytes, micSource, performanceMode,
+        mNativeAudioThread = new NativeAudioThread(threadType, samplingRate,
+                playerBufferSizeInBytes, recorderBufferSizeInBytes, micSource, performanceMode,
                 Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD, SECONDS_PER_LEVEL,
                 SECONDS_PER_LEVEL, 0, captureHolder);
         mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
@@ -80,7 +87,7 @@ class SoundLevelCalibration {
         final double ratio = (Build.DEVICE.equals("walleye")
                               || Build.DEVICE.equals("taimen")) ? 0.36 : CRITICAL_RATIO;
 
-        while(levelTop - levelBottom > 1) {
+        while (levelTop - levelBottom > 1) {
             int level = (levelBottom + levelTop) / 2;
             Log.d(TAG, "setting level to " + level);
             setVolume(level);
@@ -114,6 +121,7 @@ class SoundLevelCalibration {
     }
 
     // TODO: Only gives accurate results for an undistorted sine wave. Check for distortion.
+    // TODO move to audio_utils
     private static double averageAmplitude(double[] data) {
         if (data == null || data.length == 0) {
             return 0; // no data is present

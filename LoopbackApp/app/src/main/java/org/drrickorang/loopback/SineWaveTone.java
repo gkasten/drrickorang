@@ -21,6 +21,7 @@ package org.drrickorang.loopback;
  * This class generates a sine wave with given frequency and samplingRate.
  * It keeps a member variable "mPhase", so as it continually be called, it will continue to generate
  * the next section of the sine wave.
+ * TODO move to audio_utils
  */
 
 public class SineWaveTone extends ToneGeneration {
@@ -45,7 +46,7 @@ public class SineWaveTone extends ToneGeneration {
 
             mPhase += mPhaseIncrement;
             // insert glitches if mIsGlitchEnabled == true, and insert it for every second
-            if (mIsGlitchEnabled & (mCount % mSamplingRate == 0)) {
+            if (mIsGlitchEnabled && (mCount % mSamplingRate == 0)) {
                 mPhase += mPhaseIncrement;
             }
 
@@ -66,7 +67,7 @@ public class SineWaveTone extends ToneGeneration {
 
             mPhase += mPhaseIncrement;
             // insert glitches if mIsGlitchEnabled == true, and insert it for every second
-            if (mIsGlitchEnabled & (mCount % mSamplingRate == 0)) {
+            if (mIsGlitchEnabled && (mCount % mSamplingRate == 0)) {
                 mPhase += mPhaseIncrement;
             }
 

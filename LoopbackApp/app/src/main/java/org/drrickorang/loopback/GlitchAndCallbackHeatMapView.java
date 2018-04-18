@@ -495,4 +495,5 @@ public class GlitchAndCallbackHeatMapView extends View {
             );
         }
     }
+
 }

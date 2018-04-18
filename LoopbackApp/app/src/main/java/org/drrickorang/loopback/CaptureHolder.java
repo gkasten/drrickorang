@@ -58,7 +58,7 @@ public class CaptureHolder {
     private final boolean mIsCapturingBugreports;
     private final int mCaptureCapacity;
     private CaptureThread mCaptureThread;
-    private volatile CapturedState mCapturedStates[];
+    private final CapturedState mCapturedStates[];
     private WaveDataRingBuffer mWaveDataBuffer;
 
     //for creating AudioFileOutput objects

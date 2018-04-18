@@ -20,6 +20,7 @@ import android.content.Context;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Build;
@@ -79,6 +80,15 @@ public class LoopbackAudioThread extends Thread {
     private final CaptureHolder mCaptureHolder;
     private boolean        mIsAdjustingSoundLevel = true; // only used in buffer test
 
+    public static TestSettings computeDefaultSettings() {
+        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
+        int minPlayerBufferSizeInBytes = AudioTrack.getMinBufferSize(samplingRate,
+                AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        int minRecorderBufferSizeInBytes = AudioRecord.getMinBufferSize(samplingRate,
+                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        return new TestSettings(samplingRate, minPlayerBufferSizeInBytes,
+                minRecorderBufferSizeInBytes);
+    }
 
     public LoopbackAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
                                int micSource, BufferPeriod recorderBufferPeriod,

@@ -26,14 +26,12 @@ public abstract class Pipe {
 
     protected int       mSamplesOverrun;
     protected int       mOverruns;
-    protected final int mMaxValues;   // always in power of two
-
+    protected final int mMaxValues;   // always a power of two
 
     /** maxSamples must be >= 2. */
     public Pipe(int maxSamples) {
         mMaxValues = Utilities.roundup(maxSamples); // round up to the nearest power of 2
     }
-
 
     /**
      * Read at most "count" number of samples into array "buffer", starting from index "offset".
@@ -42,11 +40,10 @@ public abstract class Pipe {
      */
     public abstract int read(short[] buffer, int offset, int count);
 
-
     /** Return the amount of samples available to read. */
     public abstract int availableToRead();
 
-
     /** Clear the pipe. */
     public abstract void flush();
+
 }

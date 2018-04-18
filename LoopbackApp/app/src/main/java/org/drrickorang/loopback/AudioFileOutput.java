@@ -29,6 +29,7 @@ import android.util.Log;
 
 /**
  * This class is used to save the results to a .wav file.
+ * FIXME Should save data in original resolution instead of converting to 16-bit PCM.
  */
 
 public class AudioFileOutput {
@@ -144,11 +145,11 @@ public class AudioFileOutput {
     }
 
 
-    private void writeDataBuffer(double [] data, int startIndex, int end) {
+    private void writeDataBuffer(double[] data, int startIndex, int end) {
         if (mOutputStream != null) {
             try {
                 int bufferSize = 1024; //blocks of 1024 samples
-                byte [] buffer = new byte[bufferSize * 2];
+                byte[] buffer = new byte[bufferSize * 2];
 
                 for (int ii = startIndex; ii < end; ii += bufferSize) {
                     //clear buffer

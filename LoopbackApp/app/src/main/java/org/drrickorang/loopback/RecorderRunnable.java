@@ -150,7 +150,7 @@ public class RecorderRunnable implements Runnable {
             e.printStackTrace();
             return false;
         } finally {
-            if (mRecorder == null){
+            if (mRecorder == null) {
                 return false;
             } else if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
                 mRecorder.release();
@@ -217,7 +217,7 @@ public class RecorderRunnable implements Runnable {
             e.printStackTrace();
             return false;
         } finally {
-            if (mRecorder == null){
+            if (mRecorder == null) {
                 return false;
             } else if (mRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
                 mRecorder.release();

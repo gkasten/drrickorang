@@ -27,12 +27,14 @@ public class Constant {
     public static final int    MILLIS_PER_SECOND = 1000;
     public static final int    SECONDS_PER_HOUR = 3600;
 
+    // Must match constants in jni/loopback.h
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY = 222;
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD = 223;
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_CALIBRATION = 224;
 
     public static final int AUDIO_THREAD_TYPE_JAVA = 0;
-    public static final int AUDIO_THREAD_TYPE_NATIVE = 1;
+    public static final int AUDIO_THREAD_TYPE_NATIVE_SLES = 1;
+    public static final int AUDIO_THREAD_TYPE_NATIVE_AAUDIO = 2;
 
     public static final int BYTES_PER_SHORT = 2;
     public static final int SHORTS_PER_INT = 2;
@@ -84,7 +86,6 @@ public class Constant {
     // impulse happens after 300 ms and shouldn't be ignored
     public static final int MAX_IGNORE_FIRST_FRAMES = SAMPLING_RATE_MAX * 3 / 10;
     public static final int DEFAULT_IGNORE_FIRST_FRAMES = 0;
-
 
     // Controls size of pre allocated timestamp arrays
     public static final int MAX_RECORDED_LATE_CALLBACKS_PER_SECOND = 2;

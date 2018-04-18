@@ -86,7 +86,8 @@
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 4: VOICE_COMMUNICATION\n
         -ei AudioThread \t\t\t\t\t ####\t\t Audio Thread Type\n
         \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 0: Java\n
-        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 1: Native (JNI)\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 1: Native (SLES)\n
+        \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t 2: Native (AAudio)\n
         -ei AudioLevel \t\t\t\t\t\t ####\t\t Audio Level [0:15]\n
         -ei RecorderBuffer \t\t\t\t ####\t\t Recorder Buffer Frames\n
         -ei PlayerBuffer \t\t\t\t\t\t ####\t\t Player Buffer Frames\n
@@ -121,7 +122,8 @@
     <!-- spinnerAudioThreadType Options -->
     <string-array name="audioThreadType_array">
         <item>Java</item>
-        <item>native (JNI)</item>
+        <item>native (SLES)</item>
+        <item>native (AAudio)</item>
     </string-array>
 
     <string name="labelChannelIndex">Channel Index</string>

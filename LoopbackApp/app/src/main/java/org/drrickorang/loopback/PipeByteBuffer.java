@@ -28,6 +28,7 @@ import android.util.Log;
  * read(), which converts data in ByteBuffer into shorts.
  * Data in the pipe are stored in the ByteBuffer array "mByteBuffer".
  * The write side of a pipe permits overruns; flow control is the caller's responsibility.
+ * TODO move to audio_utils
  */
 
 public class PipeByteBuffer extends Pipe {
@@ -63,7 +64,7 @@ public class PipeByteBuffer extends Pipe {
 
     /**
      * Convert data in mByteBuffer into short, and put them into "buffer".
-     * Note: rear and mFront are keep in terms of number of short instead of number of byte.
+     * Note: rear and mFront are kept in terms of number of shorts instead of number of bytes.
      */
     @Override
     public int read(short[] buffer, int offset, int requiredSamples) {

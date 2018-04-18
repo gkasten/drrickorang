@@ -97,6 +97,7 @@ public class LoopbackActivity extends Activity
     private static final int BUFFER_TEST_ENDED = 303;
     private static final int CALIBRATION_STARTED = 304;
     private static final int CALIBRATION_ENDED = 305;
+    private static final int NO_TEST_ACTIVE = 306;
 
     // 0-100 controls compression rate, currently ignore because PNG format is being used
     private static final int EXPORTED_IMAGE_QUALITY = 100;
@@ -156,7 +157,7 @@ public class LoopbackActivity extends Activity
     private static final String INTENT_WAV_DURATION = "WavDuration";
 
     // for running the test using adb command
-    private boolean mIntentRunning = false; // if it is running triggered by intent with parameters
+    private volatile boolean mIntentRunning; // if it is running triggered by intent with parameters
     private String  mIntentFileName;
 
     // Note: these values should only be assigned in restartAudioSystem()
@@ -203,6 +204,7 @@ public class LoopbackActivity extends Activity
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED:
                 log("got message java latency test started!!");
                 showToast("Java Latency Test Started");
@@ -210,14 +212,16 @@ public class LoopbackActivity extends Activity
                 refreshState();
                 refreshPlots();
                 break;
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_ERROR:
                 log("got message java latency test rec can't start!!");
-                showToast("Java Latency Test Recording Error. Please try again");
+                showToastImportant("Java Latency Test Recording Error. Please try again");
                 refreshState();
                 stopAudioTestThreads();
                 mIntentRunning = false;
                 refreshSoundLevelBar();
                 break;
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_STOP:
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE:
                 if (mAudioThread != null) {
@@ -246,6 +250,7 @@ public class LoopbackActivity extends Activity
                 }
                 refreshSoundLevelBar();
                 break;
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_STARTED:
                 log("got message java buffer test rec started!!");
                 showToast("Java Buffer Test Started");
@@ -254,14 +259,16 @@ public class LoopbackActivity extends Activity
                 refreshPlots();
                 mBufferTestStartTime = System.currentTimeMillis();
                 break;
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_ERROR:
                 log("got message java buffer test rec can't start!!");
-                showToast("Java Buffer Test Recording Error. Please try again");
+                showToastImportant("Java Buffer Test Recording Error. Please try again");
                 refreshState();
                 stopAudioTestThreads();
                 mIntentRunning = false;
                 refreshSoundLevelBar();
                 break;
+
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP:
             case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE:
                 if (mAudioThread != null) {
@@ -297,6 +304,7 @@ public class LoopbackActivity extends Activity
                 }
                 refreshSoundLevelBar();
                 break;
+
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED:
                 log("got message native latency test rec started!!");
                 showToast("Native Latency Test Started");
@@ -304,6 +312,7 @@ public class LoopbackActivity extends Activity
                 refreshState();
                 refreshPlots();
                 break;
+
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STARTED:
                 log("got message native buffer test rec started!!");
                 showToast("Native Buffer Test Started");
@@ -312,20 +321,23 @@ public class LoopbackActivity extends Activity
                 refreshPlots();
                 mBufferTestStartTime = System.currentTimeMillis();
                 break;
+
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_ERROR:
                 log("got message native latency test rec can't start!!");
-                showToast("Native Latency Test Recording Error. Please try again");
+                showToastImportant("Native Latency Test Recording Error. Please try again");
                 refreshState();
                 mIntentRunning = false;
                 refreshSoundLevelBar();
                 break;
+
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_ERROR:
                 log("got message native buffer test rec can't start!!");
-                showToast("Native Buffer Test Recording Error. Please try again");
+                showToastImportant("Native Buffer Test Recording Error. Please try again");
                 refreshState();
                 mIntentRunning = false;
                 refreshSoundLevelBar();
                 break;
+
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP:
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STOP:
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE:
@@ -368,7 +380,7 @@ public class LoopbackActivity extends Activity
                                 LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_COMPLETE_ERRORS:
                         case NativeAudioThread.
                                 LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE_ERRORS:
-                        showToast("Native Test Completed with Fatal Errors");
+                        showToastImportant("Native Test Completed with Fatal Errors");
                         break;
                         case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_BUFFER_REC_STOP:
                         case NativeAudioThread.
@@ -393,6 +405,7 @@ public class LoopbackActivity extends Activity
                 }  // mNativeAudioThread != null
                 refreshSoundLevelBar();
                 break;
+
             default:
                 log("Got message:" + msg.what);
                 break;
@@ -400,6 +413,7 @@ public class LoopbackActivity extends Activity
 
             // Control UI elements visibility specific to latency or buffer/glitch test
             switch (msg.what) {
+
                 // Latency test started
                 case LoopbackAudioThread.LOOPBACK_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED:
                 case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED:
@@ -445,6 +459,10 @@ public class LoopbackActivity extends Activity
                 case CALIBRATION_ENDED:
                     setTransportButtonsState(CALIBRATION_ENDED);
                     break;
+
+                default:
+                    log("Got message:" + msg.what);
+                    break;
             }
         }
     };
@@ -487,10 +505,10 @@ public class LoopbackActivity extends Activity
 
         // TODO: Write script to file at more appropriate time, from settings activity or intent
         // TODO: Respond to failure with more than just a toast
-        if (hasWriteFilePermission()){
+        if (hasWriteFilePermission()) {
             boolean successfulWrite = AtraceScriptsWriter.writeScriptsToFile(this);
-            if(!successfulWrite) {
-                showToast("Unable to write loopback_listener script to device");
+            if (!successfulWrite) {
+                showToastImportant("Unable to write loopback_listener script to device");
             }
         } else {
             requestWriteFilePermission(PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE_SCRIPT);
@@ -530,13 +548,15 @@ public class LoopbackActivity extends Activity
         mTextViewResultSummary = (TextView) findViewById(R.id.resultSummary);
         refreshSoundLevelBar();
 
-        if(savedInstanceState != null) {
+        if (savedInstanceState != null) {
             restoreInstanceState(savedInstanceState);
         }
 
         if (!hasRecordAudioPermission()) {
             requestRecordAudioPermission(PERMISSIONS_REQUEST_RECORD_AUDIO_LATENCY);
         }
+
+        setTransportButtonsState(NO_TEST_ACTIVE);
 
         applyIntent(getIntent());
     }
@@ -549,8 +569,7 @@ public class LoopbackActivity extends Activity
         boolean bound = bindService(audioTestIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
         if (bound) {
             log("Successfully bound to service!");
-        }
-        else {
+        } else {
             log("Failed to bind service!");
         }
     }
@@ -606,6 +625,24 @@ public class LoopbackActivity extends Activity
                 return;
             }
 
+            if (b.containsKey(INTENT_AUDIO_THREAD)) {
+                int newAudioThreadType = b.getInt(INTENT_AUDIO_THREAD);
+                if (newAudioThreadType != getApp().getAudioThreadType()) {
+                    getApp().setAudioThreadType(newAudioThreadType);
+                    getApp().computeDefaults();
+                }
+                mIntentRunning = true;
+            }
+
+            if (b.containsKey(INTENT_PERFORMANCE_MODE)) {
+                int newPerformanceMode = b.getInt(INTENT_PERFORMANCE_MODE);
+                if (newPerformanceMode != getApp().getPerformanceMode()) {
+                    getApp().setPerformanceMode(newPerformanceMode);
+                    getApp().computeDefaults();
+                }
+                mIntentRunning = true;
+            }
+
             if (b.containsKey(INTENT_BUFFER_TEST_DURATION)) {
                 getApp().setBufferTestDuration(b.getInt(INTENT_BUFFER_TEST_DURATION));
                 mIntentRunning = true;
@@ -644,18 +681,8 @@ public class LoopbackActivity extends Activity
                 mIntentRunning = true;
             }
 
-            if (b.containsKey(INTENT_AUDIO_THREAD)) {
-                getApp().setAudioThreadType(b.getInt(INTENT_AUDIO_THREAD));
-                mIntentRunning = true;
-            }
-
             if (b.containsKey(INTENT_MIC_SOURCE)) {
                 getApp().setMicSource(b.getInt(INTENT_MIC_SOURCE));
-                mIntentRunning = true;
-            }
-
-            if (b.containsKey(INTENT_PERFORMANCE_MODE)) {
-                getApp().setPerformanceMode(b.getInt(INTENT_PERFORMANCE_MODE));
                 mIntentRunning = true;
             }
 
@@ -770,6 +797,7 @@ public class LoopbackActivity extends Activity
     protected void onResume() {
         super.onResume();
         log("on resume called");
+        setTransportButtonsState(NO_TEST_ACTIVE);
     }
 
 
@@ -787,7 +815,7 @@ public class LoopbackActivity extends Activity
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu){
+    public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.tool_bar_menu, menu);
         return true;
@@ -817,6 +845,9 @@ public class LoopbackActivity extends Activity
                     showToast("Test in progress... please wait");
                 }
                 return true;
+
+            default:
+                break;
         }
 
         return super.onOptionsItemSelected(item);
@@ -870,7 +901,9 @@ public class LoopbackActivity extends Activity
 
         // select java or native audio thread
         int micSourceMapped;
+
         switch (mAudioThreadType) {
+
         case Constant.AUDIO_THREAD_TYPE_JAVA:
             micSourceMapped = getApp().mapMicSource(Constant.AUDIO_THREAD_TYPE_JAVA, mMicSource);
 
@@ -889,7 +922,8 @@ public class LoopbackActivity extends Activity
                     expectedPlayerBufferPeriod, mCaptureHolder);
 
             mAudioThread = new LoopbackAudioThread(mSamplingRate, mPlayerBufferSizeInBytes,
-                          mRecorderBufferSizeInBytes, micSourceMapped, /* no performance mode */ mRecorderBufferPeriod,
+                          mRecorderBufferSizeInBytes, micSourceMapped,
+                          /* no performance mode */ mRecorderBufferPeriod,
                           mPlayerBufferPeriod, mTestType, mBufferTestDurationInSeconds,
                           mBufferTestWavePlotDurationInSeconds, getApplicationContext(),
                           mChannelIndex, mCaptureHolder);
@@ -897,13 +931,16 @@ public class LoopbackActivity extends Activity
             mAudioThread.mSessionId = sessionId;
             mAudioThread.start();
             break;
-        case Constant.AUDIO_THREAD_TYPE_NATIVE:
-            micSourceMapped = getApp().mapMicSource(Constant.AUDIO_THREAD_TYPE_NATIVE, mMicSource);
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
+            micSourceMapped = getApp().mapMicSource(Constant.AUDIO_THREAD_TYPE_NATIVE_SLES,
+                    mMicSource);
             int performanceModeMapped = getApp().mapPerformanceMode(mPerformanceMode);
             // Note: mRecorderBufferSizeInBytes will not actually be used, since recorder buffer
             // size = player buffer size in native mode
-            mNativeAudioThread = new NativeAudioThread(mSamplingRate, mPlayerBufferSizeInBytes,
-                                mRecorderBufferSizeInBytes, micSourceMapped, performanceModeMapped, mTestType,
+            mNativeAudioThread = new NativeAudioThread(mAudioThreadType, mSamplingRate,
+                                mPlayerBufferSizeInBytes, mRecorderBufferSizeInBytes,
+                                micSourceMapped, performanceModeMapped, mTestType,
                                 mBufferTestDurationInSeconds, mBufferTestWavePlotDurationInSeconds,
                                 mIgnoreFirstFrames, mCaptureHolder);
             mNativeAudioThread.setMessageHandler(mMessageHandler);
@@ -963,13 +1000,32 @@ public class LoopbackActivity extends Activity
         playerBufferPeriod.resetRecord();
     }
 
+    private boolean canPerformBufferTest() {
+        // Retrieve the thread type from the app, because mAudioThreadType
+        // only gets populated during the start of the test.
+        switch (getApp().getAudioThreadType()) {
+            case Constant.AUDIO_THREAD_TYPE_JAVA:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                return true;
+        }
+        // Buffer test isn't yet implemented for AAudio.
+        return false;
+    }
 
-    private void setTransportButtonsState(int state){
+    private void setTransportButtonsState(int state) {
         Button latencyStart = (Button) findViewById(R.id.buttonStartLatencyTest);
         Button bufferStart = (Button) findViewById(R.id.buttonStartBufferTest);
         Button calibrationStart = (Button) findViewById(R.id.buttonCalibrateSoundLevel);
 
+        boolean canEnableBufferTest = canPerformBufferTest();
+
         switch (state) {
+            case NO_TEST_ACTIVE:
+                latencyStart.setEnabled(true);
+                bufferStart.setEnabled(canEnableBufferTest);
+                calibrationStart.setEnabled(true);
+                break;
+
             case LATENCY_TEST_STARTED:
                 findViewById(R.id.zoomAndSaveControlPanel).setVisibility(View.INVISIBLE);
                 mTextViewResultSummary.setText("");
@@ -984,7 +1040,7 @@ public class LoopbackActivity extends Activity
                 findViewById(R.id.zoomAndSaveControlPanel).setVisibility(View.VISIBLE);
                 latencyStart.setCompoundDrawablesWithIntrinsicBounds(
                         R.drawable.ic_play_arrow, 0, 0, 0);
-                bufferStart.setEnabled(true);
+                bufferStart.setEnabled(canEnableBufferTest);
                 calibrationStart.setEnabled(true);
                 break;
 
@@ -1026,8 +1082,11 @@ public class LoopbackActivity extends Activity
                 bufferStart.setCompoundDrawablesWithIntrinsicBounds(
                         R.drawable.ic_play_arrow, 0, 0, 0);
                 latencyStart.setEnabled(true);
-                bufferStart.setEnabled(true);
+                bufferStart.setEnabled(canEnableBufferTest);
                 calibrationStart.setEnabled(true);
+                break;
+
+            default:
                 break;
         }
     }
@@ -1060,7 +1119,8 @@ public class LoopbackActivity extends Activity
 
         showToast("Calibrating sound level...");
         final SoundLevelCalibration calibration =
-                new SoundLevelCalibration(getApp().getSamplingRate(),
+                new SoundLevelCalibration(getApp().getAudioThreadType(),
+                        getApp().getSamplingRate(),
                         getApp().getPlayerBufferSizeInBytes(),
                         getApp().getRecorderBufferSizeInBytes(),
                         getApp().getMicSource(), getApp().getPerformanceMode(), this);
@@ -1141,10 +1201,13 @@ public class LoopbackActivity extends Activity
                         mAudioThread.runTest();
                     }
                     break;
-                case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                     if (mNativeAudioThread != null) {
                         mNativeAudioThread.runTest();
                     }
+                    break;
+                default:
                     break;
             }
         }
@@ -1167,6 +1230,14 @@ public class LoopbackActivity extends Activity
 
 
     private void startBufferTest() {
+        // In the interactive mode the buffer test button should be disabled
+        // if the buffer test isn't supported, but the function can also be invoked
+        // via an intent.
+        if (!canPerformBufferTest()) {
+            showToastImportant("Buffer test is not supported with this thread type");
+            log("Buffer test is not supported with this thread type");
+            return;
+        }
 
         if (!isBusy()) {
             mBarMasterLevel.setEnabled(false);
@@ -1185,10 +1256,13 @@ public class LoopbackActivity extends Activity
                     mAudioThread.runBufferTest();
                 }
                 break;
-            case Constant.AUDIO_THREAD_TYPE_NATIVE:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                 if (mNativeAudioThread != null) {
                     mNativeAudioThread.runBufferTest();
                 }
+                break;
+            default:
                 break;
             }
         } else {
@@ -1197,11 +1271,14 @@ public class LoopbackActivity extends Activity
             case Constant.AUDIO_THREAD_TYPE_JAVA:
                 duration = mAudioThread.getDurationInSeconds();
                 break;
-            case Constant.AUDIO_THREAD_TYPE_NATIVE:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                 duration = mNativeAudioThread.getDurationInSeconds();
                 break;
+            default:
+                break;
             }
-            showToast("Long-run Test in progress, in total should take " +
+            showToastImportant("Long-run Test in progress, in total should take " +
                     Integer.toString(duration) + "s, please wait");
         }
     }
@@ -1296,7 +1373,7 @@ public class LoopbackActivity extends Activity
         startActivityForResult(FilenameIntent, RequestCode);
     }
 
-    private String getFileNamePrefix(){
+    private String getFileNamePrefix() {
         if (mIntentFileName != null && !mIntentFileName.isEmpty()) {
             return mIntentFileName;
         } else {
@@ -1328,9 +1405,12 @@ public class LoopbackActivity extends Activity
             bufferPeriodArray = mRecorderBufferPeriod.getBufferPeriodArray();
             maxBufferPeriod = mRecorderBufferPeriod.getMaxBufferPeriod();
             break;
-        case Constant.AUDIO_THREAD_TYPE_NATIVE:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
             bufferPeriodArray = mNativeRecorderBufferPeriodArray;
             maxBufferPeriod = mNativeRecorderMaxBufferPeriod;
+            break;
+        default:
             break;
         }
         saveBufferPeriod(Uri.parse(FILE_SAVE_PATH + fileName + "_recorderBufferPeriod.txt"),
@@ -1347,9 +1427,12 @@ public class LoopbackActivity extends Activity
             bufferPeriodArray = mPlayerBufferPeriod.getBufferPeriodArray();
             maxBufferPeriod = mPlayerBufferPeriod.getMaxBufferPeriod();
             break;
-        case Constant.AUDIO_THREAD_TYPE_NATIVE:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
             bufferPeriodArray = mNativePlayerBufferPeriodArray;
             maxBufferPeriod = mNativePlayerMaxBufferPeriod;
+            break;
+        default:
             break;
         }
         saveBufferPeriod(Uri.parse(FILE_SAVE_PATH + fileName + "_playerBufferPeriod.txt")
@@ -1378,23 +1461,27 @@ public class LoopbackActivity extends Activity
 
         if (resultCode == Activity.RESULT_OK) {
             switch (requestCode) {
+
             case SAVE_TO_WAVE_REQUEST:
                 log("got SAVE TO WAV intent back!");
                 if (resultData != null) {
                     saveToWaveFile(resultData.getData());
                 }
                 break;
+
             case SAVE_TO_PNG_REQUEST:
                 log("got SAVE TO PNG intent back!");
                 if (resultData != null) {
                     saveScreenShot(resultData.getData());
                 }
                 break;
+
             case SAVE_TO_TXT_REQUEST:
                 if (resultData != null) {
                     saveTextToFile(resultData.getData(), getReport().toString());
                 }
                 break;
+
             case SAVE_RECORDER_BUFFER_PERIOD_TO_TXT_REQUEST:
                 if (resultData != null) {
                     int[] bufferPeriodArray = null;
@@ -1404,7 +1491,8 @@ public class LoopbackActivity extends Activity
                         bufferPeriodArray = mRecorderBufferPeriod.getBufferPeriodArray();
                         maxBufferPeriod = mRecorderBufferPeriod.getMaxBufferPeriod();
                         break;
-                    case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                         bufferPeriodArray = mNativeRecorderBufferPeriodArray;
                         maxBufferPeriod = mNativeRecorderMaxBufferPeriod;
                         break;
@@ -1412,6 +1500,7 @@ public class LoopbackActivity extends Activity
                     saveBufferPeriod(resultData.getData(), bufferPeriodArray, maxBufferPeriod);
                 }
                 break;
+
             case SAVE_PLAYER_BUFFER_PERIOD_TO_TXT_REQUEST:
                 if (resultData != null) {
                     int[] bufferPeriodArray = null;
@@ -1421,7 +1510,8 @@ public class LoopbackActivity extends Activity
                         bufferPeriodArray = mPlayerBufferPeriod.getBufferPeriodArray();
                         maxBufferPeriod = mPlayerBufferPeriod.getMaxBufferPeriod();
                         break;
-                    case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                         bufferPeriodArray = mNativePlayerBufferPeriodArray;
                         maxBufferPeriod = mNativePlayerMaxBufferPeriod;
                         break;
@@ -1429,6 +1519,7 @@ public class LoopbackActivity extends Activity
                     saveBufferPeriod(resultData.getData(), bufferPeriodArray, maxBufferPeriod);
                 }
                 break;
+
             case SAVE_RECORDER_BUFFER_PERIOD_TO_PNG_REQUEST:
                 if (resultData != null) {
                     int[] bufferPeriodArray = null;
@@ -1438,7 +1529,8 @@ public class LoopbackActivity extends Activity
                             bufferPeriodArray = mRecorderBufferPeriod.getBufferPeriodArray();
                             maxBufferPeriod = mRecorderBufferPeriod.getMaxBufferPeriod();
                             break;
-                        case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                             bufferPeriodArray = mNativeRecorderBufferPeriodArray;
                             maxBufferPeriod = mNativeRecorderMaxBufferPeriod;
                             break;
@@ -1446,6 +1538,7 @@ public class LoopbackActivity extends Activity
                     saveHistogram(resultData.getData(), bufferPeriodArray, maxBufferPeriod);
                 }
                 break;
+
             case SAVE_PLAYER_BUFFER_PERIOD_TO_PNG_REQUEST:
                 if (resultData != null) {
                     int[] bufferPeriodArray = null;
@@ -1455,7 +1548,8 @@ public class LoopbackActivity extends Activity
                             bufferPeriodArray = mPlayerBufferPeriod.getBufferPeriodArray();
                             maxBufferPeriod = mPlayerBufferPeriod.getMaxBufferPeriod();
                             break;
-                        case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                             bufferPeriodArray = mNativePlayerBufferPeriodArray;
                             maxBufferPeriod = mNativePlayerMaxBufferPeriod;
                             break;
@@ -1463,36 +1557,44 @@ public class LoopbackActivity extends Activity
                     saveHistogram(resultData.getData(), bufferPeriodArray, maxBufferPeriod);
                 }
                 break;
+
             case SAVE_PLAYER_BUFFER_PERIOD_TIMES_TO_TXT_REQUEST:
                 if (resultData != null) {
                     saveTextToFile(resultData.getData(),
                             mPlayerCallbackTimes.toString());
                 }
                 break;
+
             case SAVE_RECORDER_BUFFER_PERIOD_TIMES_TO_TXT_REQUEST:
                 if (resultData != null) {
                     saveTextToFile(resultData.getData(),
                             mRecorderCallbackTimes.toString());
                 }
                 break;
+
             case SAVE_GLITCH_OCCURRENCES_TO_TEXT_REQUEST:
                 if (resultData != null) {
                     saveGlitchOccurrences(resultData.getData(), mGlitchesData);
                 }
                 break;
+
             case SAVE_GLITCH_AND_CALLBACK_HEATMAP_REQUEST:
                 if (resultData != null && mGlitchesData != null && mRecorderCallbackTimes != null
-                        & mPlayerCallbackTimes != null){
+                        && mPlayerCallbackTimes != null) {
                     saveHeatMap(resultData.getData(), mRecorderCallbackTimes, mPlayerCallbackTimes,
                             GlitchesStringBuilder.getGlitchMilliseconds(mFFTSamplingSize,
                                     mFFTOverlapSamples, mGlitchesData, mSamplingRate),
                             mGlitchingIntervalTooLong, mBufferTestElapsedSeconds,
                             resultData.getData().toString());
                 }
+
             case SETTINGS_ACTIVITY_REQUEST:
                 log("return from new settings!");
-
                 break;
+
+            default:
+                break;
+
             }
         }
     }
@@ -1582,7 +1684,8 @@ public class LoopbackActivity extends Activity
                 RecorderBufferPeriodIntent.putExtra("recorderBufferPeriodMax",
                         mRecorderBufferPeriod.getMaxBufferPeriod());
                 break;
-            case Constant.AUDIO_THREAD_TYPE_NATIVE:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                 RecorderBufferPeriodIntent.putExtra("recorderBufferPeriodArray",
                         mNativeRecorderBufferPeriodArray);
                 RecorderBufferPeriodIntent.putExtra("recorderBufferPeriodMax",
@@ -1611,7 +1714,8 @@ public class LoopbackActivity extends Activity
                 PlayerBufferPeriodIntent.putExtra("playerBufferPeriodMax",
                         mPlayerBufferPeriod.getMaxBufferPeriod());
                 break;
-            case Constant.AUDIO_THREAD_TYPE_NATIVE:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                 PlayerBufferPeriodIntent.putExtra("playerBufferPeriodArray",
                         mNativePlayerBufferPeriodArray);
                 PlayerBufferPeriodIntent.putExtra("playerBufferPeriodMax",
@@ -1644,9 +1748,9 @@ public class LoopbackActivity extends Activity
                         mGlitchingIntervalTooLong, estimateNumberOfGlitches(mGlitchesData)));
 
                 // display pop up window, dismissible with back button
-                popUp.showAtLocation(findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
+                popUp.showAtLocation((View) findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
             } else {
-                showToast("Please run the buffer test to get data");
+                showToastImportant("Please run the buffer test to get data");
             }
 
         } else {
@@ -1672,9 +1776,9 @@ public class LoopbackActivity extends Activity
                 reportText.setText(getReport().toString());
 
                 // display pop up window, dismissible with back button
-                popUp.showAtLocation(findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
+                popUp.showAtLocation((View) findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
             } else {
-                showToast("Please run the tests to get data");
+                showToastImportant("Please run the tests to get data");
             }
 
         } else {
@@ -1702,10 +1806,10 @@ public class LoopbackActivity extends Activity
                                 mGlitchingIntervalTooLong, mBufferTestElapsedSeconds,
                                 getResources().getString(R.string.heatTitle)));
 
-                popUp.showAtLocation(findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
+                popUp.showAtLocation((View) findViewById(R.id.linearLayoutMain), Gravity.TOP, 0, 0);
 
             } else {
-                showToast("Please run the tests to get data");
+                showToastImportant("Please run the tests to get data");
             }
 
         } else {
@@ -1714,13 +1818,22 @@ public class LoopbackActivity extends Activity
     }
 
     /** Redraw the plot according to mWaveData */
-    void refreshPlots() {
+    private void refreshPlots() {
         mWavePlotView.setData(mRetainedFragment.getWaveData(), mSamplingRate);
         mWavePlotView.redraw();
     }
 
+    static String audioThreadTypeToString(int audioThreadType) {
+        switch (audioThreadType) {
+            case Constant.AUDIO_THREAD_TYPE_JAVA: return "JAVA";
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES: return "NATIVE (SLES)";
+            case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO: return "NATIVE (AAUDIO)";
+        }
+        return "DEFAULT";
+    }
+
     /** Refresh the text on the main activity that shows the app states and audio settings. */
-    void refreshState() {
+    private void refreshState() {
         log("refreshState!");
         refreshSoundLevelBar();
 
@@ -1739,13 +1852,13 @@ public class LoopbackActivity extends Activity
         case Constant.AUDIO_THREAD_TYPE_JAVA:
             s.append(" Play Frames: " ).append(playerFrames);
             s.append(" Record Frames: ").append(recorderFrames);
-            s.append(" Audio: JAVA");
             break;
-        case Constant.AUDIO_THREAD_TYPE_NATIVE:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+        case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
             s.append(" Frames: ").append(playerFrames);
-            s.append(" Audio: NATIVE");
             break;
         }
+        s.append(" Audio: ").append(audioThreadTypeToString(mAudioThreadType));
 
         // mic source
         String micSourceName = getApp().getMicSourceString(mMicSource);
@@ -1803,12 +1916,27 @@ public class LoopbackActivity extends Activity
         Log.v(TAG, msg);
     }
 
-
     public void showToast(final String msg) {
+        doShowToast(msg, false);
+    }
+
+    public void showToastImportant(final String msg) {
+        doShowToast(msg, true);
+    }
+
+    private void doShowToast(final String msg, boolean isImportant) {
+        // If launched from an intent, do not show unimportant toasts.
+        // Intents are typically used by scripts, which run actions at high
+        // rate. On some versions of Android this causes the toasts to
+        // queue up, and they continue displaying long after the app has
+        // finished the actions.
+        if (mIntentRunning && !isImportant) {
+            return;
+        }
         // Make sure UI manipulations are only done on the UI thread
-        LoopbackActivity.this.runOnUiThread(new Runnable() {
+        runOnUiThread(new Runnable() {
             public void run() {
-                Toast toast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG);
+                Toast toast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT);
                 toast.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL, 10, 10);
                 toast.show();
             }
@@ -1823,7 +1951,7 @@ public class LoopbackActivity extends Activity
 
 
     /** Save a .wav file of the wave plot on the main activity. */
-    void saveToWaveFile(Uri uri) {
+    private void saveToWaveFile(Uri uri) {
         double[] waveData = mRetainedFragment.getWaveData();
         if (waveData != null && waveData.length > 0) {
             AudioFileOutput audioFileOutput = new AudioFileOutput(getApplicationContext(), uri,
@@ -1840,7 +1968,7 @@ public class LoopbackActivity extends Activity
                 }
                 showToast("Finished exporting wave File " + wavFileAbsolutePath);
             } else {
-                showToast("Something failed saving wave file");
+                showToastImportant("Something failed saving wave file");
             }
 
         }
@@ -1848,7 +1976,7 @@ public class LoopbackActivity extends Activity
 
 
     /** Save a screenshot of the main activity. */
-    void saveScreenShot(Uri uri) {
+    private void saveScreenShot(Uri uri) {
         ParcelFileDescriptor parcelFileDescriptor = null;
         FileOutputStream outputStream;
         try {
@@ -1946,7 +2074,7 @@ public class LoopbackActivity extends Activity
      * Save a .txt file of the given buffer period's data.
      * First column is time, second column is count.
      */
-    void saveBufferPeriod(Uri uri, int[] bufferPeriodArray, int maxBufferPeriod) {
+    private void saveBufferPeriod(Uri uri, int[] bufferPeriodArray, int maxBufferPeriod) {
         ParcelFileDescriptor parcelFileDescriptor = null;
         FileOutputStream outputStream;
         if (bufferPeriodArray != null) {
@@ -1987,7 +2115,7 @@ public class LoopbackActivity extends Activity
     }
 
     /** Save a .txt file of various test results. */
-    void saveTextToFile(Uri uri, String outputText) {
+    private void saveTextToFile(Uri uri, String outputText) {
         ParcelFileDescriptor parcelFileDescriptor = null;
         FileOutputStream outputStream;
         try {
@@ -2027,15 +2155,7 @@ public class LoopbackActivity extends Activity
                 Constant.BYTES_PER_FRAME + endline);
         sb.append(INTENT_AUDIO_THREAD + " = " + mAudioThreadType + endline);
 
-        String audioType = "unknown";
-        switch (mAudioThreadType) {
-            case Constant.AUDIO_THREAD_TYPE_JAVA:
-                audioType = "JAVA";
-                break;
-            case Constant.AUDIO_THREAD_TYPE_NATIVE:
-                audioType = "NATIVE";
-                break;
-        }
+        String audioType = audioThreadTypeToString(mAudioThreadType);
         sb.append(INTENT_AUDIO_THREAD + "_String = " + audioType + endline);
 
         sb.append(INTENT_MIC_SOURCE + " = " + mMicSource + endline);
@@ -2044,6 +2164,7 @@ public class LoopbackActivity extends Activity
         sb.append(INTENT_AUDIO_LEVEL + " = " + mSoundLevel + endline);
 
         switch (mTestType) {
+
             case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
                 sb.append(INTENT_IGNORE_FIRST_FRAMES + " = " + mIgnoreFirstFrames + endline);
                 if (mCorrelation.isValid()) {
@@ -2059,6 +2180,7 @@ public class LoopbackActivity extends Activity
                 sb.append(String.format("Average = %.4f", mCorrelation.mAverage) + endline);
                 sb.append(String.format("RMS = %.4f", mCorrelation.mRms) + endline);
                 break;
+
             case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD:
                 sb.append("Buffer Test Duration (s) = " + mBufferTestDurationInSeconds + endline);
 
@@ -2072,7 +2194,8 @@ public class LoopbackActivity extends Activity
                         recorderBufferDataMax = mRecorderBufferPeriod.getMaxBufferPeriod();
                         recorderBufferDataStdDev = mRecorderBufferPeriod.getStdDevBufferPeriod();
                         break;
-                    case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                         recorderBufferData = mNativeRecorderBufferPeriodArray;
                         recorderBufferDataMax = mNativeRecorderMaxBufferPeriod;
                         recorderBufferDataStdDev = mNativeRecorderStdDevBufferPeriod;
@@ -2087,7 +2210,7 @@ public class LoopbackActivity extends Activity
                             usefulDataRange);
                     PerformanceMeasurement measurement = new PerformanceMeasurement(
                             mRecorderCallbackTimes.getExpectedBufferPeriod(), usefulBufferData);
-                    float recorderPercentAtExpected =
+                    double recorderPercentAtExpected =
                             measurement.percentBufferPeriodsAtExpected();
                     double benchmark = measurement.computeWeightedBenchmark();
                     int outliers = measurement.countOutliers();
@@ -2120,7 +2243,8 @@ public class LoopbackActivity extends Activity
                         playerBufferDataMax = mPlayerBufferPeriod.getMaxBufferPeriod();
                         playerBufferDataStdDev = mPlayerBufferPeriod.getStdDevBufferPeriod();
                         break;
-                    case Constant.AUDIO_THREAD_TYPE_NATIVE:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_SLES:
+                    case Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO:
                         playerBufferData = mNativePlayerBufferPeriodArray;
                         playerBufferDataMax = mNativePlayerMaxBufferPeriod;
                         playerBufferDataStdDev = mNativePlayerStdDevBufferPeriod;
@@ -2137,7 +2261,7 @@ public class LoopbackActivity extends Activity
                             usefulDataRange);
                     PerformanceMeasurement measurement = new PerformanceMeasurement(
                             mPlayerCallbackTimes.getExpectedBufferPeriod(), usefulBufferData);
-                    float playerPercentAtExpected = measurement.percentBufferPeriodsAtExpected();
+                    double playerPercentAtExpected = measurement.percentBufferPeriodsAtExpected();
                     double benchmark = measurement.computeWeightedBenchmark();
                     int outliers = measurement.countOutliers();
                     sb.append("Player Buffer Periods At Expected = "
@@ -2159,8 +2283,8 @@ public class LoopbackActivity extends Activity
                 }
                 // report glitches per hour
                 int numberOfGlitches = estimateNumberOfGlitches(mGlitchesData);
-                float testDurationInHours = mBufferTestElapsedSeconds
-                        / (float) Constant.SECONDS_PER_HOUR;
+                double testDurationInHours = mBufferTestElapsedSeconds
+                        / (double) Constant.SECONDS_PER_HOUR;
 
                 // Report Glitches Per Hour if sufficient data available, ie at least half an hour
                 if (testDurationInHours >= .5) {
@@ -2278,7 +2402,7 @@ public class LoopbackActivity extends Activity
      * Check whether we have the RECORD_AUDIO permission
      * @return true if we do
      */
-    private boolean hasRecordAudioPermission(){
+    private boolean hasRecordAudioPermission() {
         boolean hasPermission = (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
 
@@ -2289,7 +2413,7 @@ public class LoopbackActivity extends Activity
     /**
      * Requests the RECORD_AUDIO permission from the user
      */
-    private void requestRecordAudioPermission(int requestCode){
+    private void requestRecordAudioPermission(int requestCode) {
 
         String requiredPermission = Manifest.permission.RECORD_AUDIO;
 
@@ -2298,8 +2422,8 @@ public class LoopbackActivity extends Activity
         if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                 requiredPermission)) {
 
-            showToast("This app needs to record audio through the microphone to test the device's "+
-                    "performance");
+            showToastImportant("This app needs to record audio through the microphone to test "+
+                    "the device's performance");
         }
 
         // request the permission.
@@ -2374,7 +2498,7 @@ public class LoopbackActivity extends Activity
         mTestStartTimeString = in.getString("mTestStartTimeString");
 
         mGlitchesData = in.getIntArray("mGlitchesData");
-        if(mGlitchesData != null) {
+        if (mGlitchesData != null) {
             mGlitchingIntervalTooLong = in.getBoolean("mGlitchingIntervalTooLong");
             mFFTSamplingSize = in.getInt("mFFTSamplingSize");
             mFFTOverlapSamples = in.getInt("mFFTOverlapSamples");
@@ -2387,7 +2511,7 @@ public class LoopbackActivity extends Activity
             findViewById(R.id.glitchReportPanel).setVisibility(View.VISIBLE);
         }
 
-        if(mRetainedFragment.getWaveData() != null) {
+        if (mRetainedFragment.getWaveData() != null) {
             mCorrelation = in.getParcelable("mCorrelation");
             mPlayerBufferPeriod = in.getParcelable("mPlayerBufferPeriod");
             mRecorderBufferPeriod = in.getParcelable("mRecorderBufferPeriod");
@@ -2441,4 +2565,5 @@ public class LoopbackActivity extends Activity
         out.putInt("mBufferTestDurationInSeconds", mBufferTestDurationInSeconds);
         out.putInt("mBufferTestWavePlotDurationInSeconds", mBufferTestWavePlotDurationInSeconds);
     }
+
 }

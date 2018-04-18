@@ -18,7 +18,8 @@ package org.drrickorang.loopback;
 
 /**
  * Creates a tone that can be injected (and then looped back) in the Latency test.
- * The generated tone is a sine wave whose amplitude linearly increases than decreases
+ * The generated tone is a sine wave whose amplitude linearly increases than decreases linearly,
+ * that is it has a triangular window.
  */
 public class RampedSineTone extends SineWaveTone {
 

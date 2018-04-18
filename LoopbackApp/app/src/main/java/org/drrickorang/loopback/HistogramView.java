@@ -87,7 +87,8 @@ public class HistogramView extends View {
         fillCanvas(canvas, this.getRight(), this.getBottom());
     }
 
-    public void fillCanvas(Canvas canvas, int right, int bottom){
+    // also called in LoopbackActivity.java
+    void fillCanvas(Canvas canvas, int right, int bottom) {
         canvas.drawColor(Color.GRAY);
 
         if (mData == null || mData.length == 0) {

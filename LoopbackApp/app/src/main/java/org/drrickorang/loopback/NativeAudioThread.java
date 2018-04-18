@@ -19,9 +19,13 @@ package org.drrickorang.loopback;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import android.util.Log;
+import android.content.Context;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 
 
 /**
@@ -50,6 +54,7 @@ public class NativeAudioThread extends Thread {
     public double[] mSamples; // store samples that will be shown on WavePlotView
     int             mSamplesIndex;
 
+    private int mThreadType;
     private int mTestType;
     private int mSamplingRate;
     private int mMinPlayerBufferSizeInBytes = 0;
@@ -85,11 +90,36 @@ public class NativeAudioThread extends Thread {
     private PipeByteBuffer        mPipeByteBuffer;
     private GlitchDetectionThread mGlitchDetectionThread;
 
+    /** Check if it's safe to use getProperty(). */
+    static boolean isSafeToUseGetProperty() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1;
+    }
 
-    public NativeAudioThread(int samplingRate, int playerBufferInBytes, int recorderBufferInBytes,
-                             int micSource, int performanceMode, int testType, int bufferTestDurationInSeconds,
+    public static TestSettings computeDefaultSettings(Context context,
+            int threadType, int performanceMode) {
+        TestSettings nativeResult = nativeComputeDefaultSettings(
+                Constant.BYTES_PER_FRAME, threadType, performanceMode);
+        if (nativeResult != null) {
+            return nativeResult;
+        }
+
+        int samplingRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
+        int minBufferSizeInFrames = 1024;
+        if (isSafeToUseGetProperty()) {
+            AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            String value = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+            minBufferSizeInFrames = Integer.parseInt(value);
+        }
+        int minBufferSizeInBytes = Constant.BYTES_PER_FRAME * minBufferSizeInFrames;
+        return new TestSettings(samplingRate, minBufferSizeInBytes, minBufferSizeInBytes);
+    }
+
+    public NativeAudioThread(int threadType, int samplingRate, int playerBufferInBytes,
+                             int recorderBufferInBytes, int micSource, int performanceMode,
+                             int testType, int bufferTestDurationInSeconds,
                              int bufferTestWavePlotDurationInSeconds, int ignoreFirstFrames,
                              CaptureHolder captureHolder) {
+        mThreadType = threadType;
         mSamplingRate = samplingRate;
         mMinPlayerBufferSizeInBytes = playerBufferInBytes;
         mMinRecorderBuffSizeInBytes = recorderBufferInBytes;
@@ -104,6 +134,7 @@ public class NativeAudioThread extends Thread {
     }
 
     public NativeAudioThread(NativeAudioThread old) {
+        mThreadType = old.mThreadType;
         mSamplingRate = old.mSamplingRate;
         mMinPlayerBufferSizeInBytes = old.mMinPlayerBufferSizeInBytes;
         mMinRecorderBuffSizeInBytes = old.mMinRecorderBuffSizeInBytes;
@@ -130,25 +161,28 @@ public class NativeAudioThread extends Thread {
 
 
     //jni calls
-    public native long  slesInit(int samplingRate, int frameCount, int micSource,
+    public static native TestSettings nativeComputeDefaultSettings(
+            int bytesPerFrame, int threadType, int performanceMode);
+    public native long  nativeInit(int threadType,
+                                 int samplingRate, int frameCount, int micSource,
                                  int performanceMode,
                                  int testType, double frequency1, ByteBuffer byteBuffer,
                                  short[] sincTone, int maxRecordedLateCallbacks,
                                  int ignoreFirstFrames);
-    public native int   slesProcessNext(long sles_data, double[] samples, long offset);
-    public native int   slesDestroy(long sles_data);
+    public native int   nativeProcessNext(long nativeHandle, double[] samples, long offset);
+    public native int   nativeDestroy(long nativeHandle);
 
     // to get buffer period data
-    public native int[]  slesGetRecorderBufferPeriod(long sles_data);
-    public native int    slesGetRecorderMaxBufferPeriod(long sles_data);
-    public native double slesGetRecorderVarianceBufferPeriod(long sles_data);
-    public native int[]  slesGetPlayerBufferPeriod(long sles_data);
-    public native int    slesGetPlayerMaxBufferPeriod(long sles_data);
-    public native double slesGetPlayerVarianceBufferPeriod(long sles_data);
-    public native BufferCallbackTimes slesGetPlayerCallbackTimeStamps(long sles_data);
-    public native BufferCallbackTimes slesGetRecorderCallbackTimeStamps(long sles_data);
+    public native int[]  nativeGetRecorderBufferPeriod(long nativeHandle);
+    public native int    nativeGetRecorderMaxBufferPeriod(long nativeHandle);
+    public native double nativeGetRecorderVarianceBufferPeriod(long nativeHandle);
+    public native int[]  nativeGetPlayerBufferPeriod(long nativeHandle);
+    public native int    nativeGetPlayerMaxBufferPeriod(long nativeHandle);
+    public native double nativeGetPlayerVarianceBufferPeriod(long nativeHandle);
+    public native BufferCallbackTimes nativeGetPlayerCallbackTimeStamps(long nativeHandle);
+    public native BufferCallbackTimes nativeGetRecorderCallbackTimeStamps(long nativeHandle);
 
-    public native int slesGetCaptureRank(long sles_data);
+    public native int nativeGetCaptureRank(long nativeHandle);
 
 
     public void run() {
@@ -174,12 +208,13 @@ public class NativeAudioThread extends Thread {
             mMessageHandler.sendMessage(msg);
         }
 
-        //generate sinc tone use for loopback test
+        // generate windowed tone use for loopback test
         short loopbackTone[] = new short[mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME];
         if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY) {
             ToneGeneration sincToneGen = new RampedSineTone(mSamplingRate,
                     Constant.LOOPBACK_FREQUENCY);
-            sincToneGen.generateTone(loopbackTone, loopbackTone.length);
+            int sincLength = Math.min(Constant.LOOPBACK_SAMPLE_FRAMES, loopbackTone.length);
+            sincToneGen.generateTone(loopbackTone, sincLength);
         }
 
         log(String.format("about to init, sampling rate: %d, buffer:%d", mSamplingRate,
@@ -188,15 +223,15 @@ public class NativeAudioThread extends Thread {
         // mPipeByteBuffer is only used in buffer test
         mPipeByteBuffer = new PipeByteBuffer(Constant.MAX_SHORTS);
         long startTimeMs = System.currentTimeMillis();
-        long sles_data = slesInit(mSamplingRate,
+        long nativeHandle = nativeInit(mThreadType, mSamplingRate,
                 mMinPlayerBufferSizeInBytes / Constant.BYTES_PER_FRAME, mMicSource,
                 mPerformanceMode, mTestType,
                 mFrequency1, mPipeByteBuffer.getByteBuffer(), loopbackTone,
                 mBufferTestDurationInSeconds * Constant.MAX_RECORDED_LATE_CALLBACKS_PER_SECOND,
                 mIgnoreFirstFrames);
-        log(String.format("sles_data = 0x%X", sles_data));
+        log(String.format("nativeHandle = 0x%X", nativeHandle));
 
-        if (sles_data == 0) {
+        if (nativeHandle == 0) {
             //notify error!!
             log(" ERROR at JNI initialization");
             if (mMessageHandler != null) {
@@ -235,7 +270,7 @@ public class NativeAudioThread extends Thread {
                 // retrieve native recorder's recorded data
                 for (int ii = 0; ii < latencyTestDurationInSeconds; ii++) {
                     log(String.format("block %d...", ii));
-                    int samplesRead = slesProcessNext(sles_data, mSamples, offset);
+                    int samplesRead = nativeProcessNext(nativeHandle, mSamples, offset);
                     totalSamplesRead += samplesRead;
                     offset += samplesRead;
                     log(" [" + ii + "] jni samples read:" + samplesRead +
@@ -253,7 +288,7 @@ public class NativeAudioThread extends Thread {
                     if (mIsRequestStop) {
                         break;
                     } else {
-                        int rank = slesGetCaptureRank(sles_data);
+                        int rank = nativeGetCaptureRank(nativeHandle);
                         if (rank > 0) {
                             //log("Late callback detected");
                             mCaptureHolder.captureState(rank);
@@ -274,15 +309,17 @@ public class NativeAudioThread extends Thread {
             }
 
             // collect buffer period data
-            mRecorderBufferPeriod = slesGetRecorderBufferPeriod(sles_data);
-            mRecorderMaxBufferPeriod = slesGetRecorderMaxBufferPeriod(sles_data);
-            mRecorderStdDevBufferPeriod = Math.sqrt(slesGetRecorderVarianceBufferPeriod(sles_data));
-            mPlayerBufferPeriod = slesGetPlayerBufferPeriod(sles_data);
-            mPlayerMaxBufferPeriod = slesGetPlayerMaxBufferPeriod(sles_data);
-            mPlayerStdDevBufferPeriod = Math.sqrt(slesGetPlayerVarianceBufferPeriod(sles_data));
+            mRecorderBufferPeriod = nativeGetRecorderBufferPeriod(nativeHandle);
+            mRecorderMaxBufferPeriod = nativeGetRecorderMaxBufferPeriod(nativeHandle);
+            mRecorderStdDevBufferPeriod = Math.sqrt(nativeGetRecorderVarianceBufferPeriod(
+                    nativeHandle));
+            mPlayerBufferPeriod = nativeGetPlayerBufferPeriod(nativeHandle);
+            mPlayerMaxBufferPeriod = nativeGetPlayerMaxBufferPeriod(nativeHandle);
+            mPlayerStdDevBufferPeriod = Math.sqrt(nativeGetPlayerVarianceBufferPeriod(
+                    nativeHandle));
 
-            mPlayerCallbackTimes = slesGetPlayerCallbackTimeStamps(sles_data);
-            mRecorderCallbackTimes = slesGetRecorderCallbackTimeStamps(sles_data);
+            mPlayerCallbackTimes = nativeGetPlayerCallbackTimeStamps(nativeHandle);
+            mRecorderCallbackTimes = nativeGetRecorderCallbackTimeStamps(nativeHandle);
 
             // get glitches data only for buffer test
             if (mTestType == Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD) {
@@ -296,7 +333,7 @@ public class NativeAudioThread extends Thread {
                 mCaptureHolder.captureState(0);
             }
 
-            runDestroy(sles_data);
+            runDestroy(nativeHandle);
 
             final int maxTry = 20;
             int tryCount = 0;
@@ -373,18 +410,17 @@ public class NativeAudioThread extends Thread {
     }
 
 
-    private void runDestroy(final long sles_data) {
+    private void runDestroy(final long localNativeHandle) {
         isDestroying = true;
 
         //start thread
-        final long local_sles_data = sles_data;
         Thread thread = new Thread(new Runnable() {
             public void run() {
                 isDestroying = true;
                 log("**Start runnable destroy");
 
-                int status = slesDestroy(local_sles_data);
-                log(String.format("**End runnable destroy sles delete status: %d", status));
+                int status = nativeDestroy(localNativeHandle);
+                log(String.format("**End runnable destroy native delete status: %d", status));
                 isDestroying = false;
             }
         });

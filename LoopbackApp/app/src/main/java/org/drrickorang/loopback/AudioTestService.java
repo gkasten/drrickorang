@@ -79,10 +79,10 @@ public class AudioTestService extends Service {
             builder.setChannelId(CHANNEL_ID);
         }
         Notification notification;
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-            notification = builder.getNotification();
-        } else {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             notification = builder.build();
+        } else {
+            notification = builder.getNotification();
         }
 
         startForeground(NOTIFICATION_ID, notification);

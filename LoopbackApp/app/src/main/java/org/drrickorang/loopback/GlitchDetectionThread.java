@@ -157,6 +157,7 @@ public class GlitchDetectionThread extends Thread {
 
 
     /** convert samples in shortBuffer to double, then copy into doubleBuffer. */
+    // TODO move to audio_utils
     private void bufferShortToDouble(short[] shortBuffer, double[] doubleBuffer) {
         double temp;
         for (int i = 0; i < shortBuffer.length; i++) {
@@ -221,22 +222,22 @@ public class GlitchDetectionThread extends Thread {
         mFFTCount++;
     }
 
-    private void checkGlitchConcentration(){
+    private void checkGlitchConcentration() {
 
         final int recordedGlitch = mGlitches[mGlitchesIndex-1];
-        if (recordedGlitch - mLastGlitchCaptureAttempt <= COOLDOWN_WINDOW){
+        if (recordedGlitch - mLastGlitchCaptureAttempt <= COOLDOWN_WINDOW) {
             return;
         }
 
         final int windowBegin = recordedGlitch - GLITCH_CONCENTRATION_WINDOW_SIZE;
 
         int numGlitches = 0;
-        for (int index = mGlitchesIndex-1; index >= 0 && mGlitches[index] >= windowBegin; --index){
+        for (int index = mGlitchesIndex-1; index >= 0 && mGlitches[index] >= windowBegin; --index) {
             ++numGlitches;
         }
 
         int captureResponse = mCaptureHolder.captureState(numGlitches);
-        if (captureResponse != CaptureHolder.NEW_CAPTURE_IS_LEAST_INTERESTING){
+        if (captureResponse != CaptureHolder.NEW_CAPTURE_IS_LEAST_INTERESTING) {
             mLastGlitchCaptureAttempt = recordedGlitch;
         }
 
