@@ -18,20 +18,15 @@ LOCAL_SRC_FILES   := \
     lb2/loopback2.cpp \
     lb2/sound_system_aaudio.cpp \
     lb2/oboe/src/aaudio/AAudioLoader.cpp
+
 LOCAL_C_INCLUDES := \
     frameworks/wilhelm/include
 
-LOCAL_SHARED_LIBRARIES := \
-    libOpenSLES \
-    liblog \
-    libandroid \
-    libaaudio
-
-LOCAL_LDLIBS += -lOpenSLES -llog -landroid
-#LOCAL_PRELINK_MODULE := false
+LOCAL_LDLIBS += -lOpenSLES -ldl -llog -landroid
 
 #LOCAL_LDFLAGS += -Wl,--hash-style=sysv
 #LOCAL_CFLAGS := -DSTDC_HEADERS
 LOCAL_CONLYFLAGS := -std=c11
+LOGCAL_CPPFLAGS :=-std=c++11 -fexceptions
 
 include $(BUILD_SHARED_LIBRARY)
