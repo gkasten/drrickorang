@@ -27,6 +27,6 @@ LOCAL_LDLIBS += -lOpenSLES -ldl -llog -landroid
 #LOCAL_LDFLAGS += -Wl,--hash-style=sysv
 #LOCAL_CFLAGS := -DSTDC_HEADERS
 LOCAL_CONLYFLAGS := -std=c11
-LOGCAL_CPPFLAGS :=-std=c++11 -fexceptions
+LOCAL_CPPFLAGS :=-std=c++11 -fexceptions
 
 include $(BUILD_SHARED_LIBRARY)

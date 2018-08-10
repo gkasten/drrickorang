@@ -42,7 +42,7 @@ set_target_properties(${PROJECT_NAME}
     CXX_EXTENSIONS NO
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE -fexceptions -frtti -Wall)
+target_compile_options(${PROJECT_NAME} PRIVATE -fexceptions -Wall)
 #target_compile_options(${PROJECT_NAME} -DSTDC_HEADERS)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
