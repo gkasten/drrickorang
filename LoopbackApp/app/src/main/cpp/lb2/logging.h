@@ -36,12 +36,18 @@
 
 struct ScopedTrace {
     ScopedTrace(const char* name) {
+#if __ANDROID_API__ >= 23
         ATrace_beginSection(name);
+#else
+        (void)name;
+#endif
     }
     ScopedTrace(const ScopedTrace&) = delete;
     ScopedTrace& operator=(const ScopedTrace&) = delete;
     ~ScopedTrace() {
+#if __ANDROID_API__ >= 23
         ATrace_endSection();
+#endif
     }
 };
 
