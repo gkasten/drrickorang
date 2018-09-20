@@ -371,10 +371,12 @@ public class LoopbackApplication extends Application {
     }
 
 
+/*
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
     }
+*/
 
 
     @Override
@@ -385,19 +387,24 @@ public class LoopbackApplication extends Application {
     }
 
 
+/*
     @Override
     public void onLowMemory() {
         super.onLowMemory();
     }
+*/
 
 
+/*
     @Override
     public void onTerminate() {
         super.onTerminate();
     }
+*/
 
 
     private static void log(String msg) {
         Log.v(TAG, msg);
     }
+
 }

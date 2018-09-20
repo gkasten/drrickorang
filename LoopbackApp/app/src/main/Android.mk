@@ -12,14 +12,12 @@ LOCAL_PACKAGE_NAME := Loopback
 
 LOCAL_CERTIFICATE := platform
 
-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res \
-    frameworks/support/v7/appcompat/res
+LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
 
-LOCAL_AAPT_FLAGS := --auto-add-overlay \
-    --extra-packages android.support.v4
+LOCAL_USE_AAPT2 := true
 
-LOCAL_STATIC_JAVA_LIBRARIES := \
-    android-support-v4
+LOCAL_STATIC_ANDROID_LIBRARIES := \
+    androidx.legacy_legacy-support-v4
 
 include $(BUILD_PACKAGE)
 

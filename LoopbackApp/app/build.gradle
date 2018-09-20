@@ -8,7 +8,7 @@
 apply plugin: 'com.android.application'
 
 android {
-        compileSdkVersion 26
+        compileSdkVersion 28
 
         defaultConfig {
             applicationId 'org.drrickorang.loopback'
@@ -34,5 +34,5 @@ android {
 }
 
 dependencies {
-    implementation 'com.android.support:appcompat-v7:26.0.1'
+    implementation 'androidx.appcompat:appcompat:1.0.0-rc02'
 }

@@ -32,6 +32,10 @@ public class Constant {
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_BUFFER_PERIOD = 223;
     public static final int LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_CALIBRATION = 224;
 
+    // Keys for CTS Loopback invocation
+    public static final String KEY_CTSINVOCATION = "CTS-Test";
+    public static final String KEY_NUMITERATIONS = "NumIterations";
+
     public static final int AUDIO_THREAD_TYPE_JAVA = 0;
     public static final int AUDIO_THREAD_TYPE_NATIVE_SLES = 1;
     public static final int AUDIO_THREAD_TYPE_NATIVE_AAUDIO = 2;

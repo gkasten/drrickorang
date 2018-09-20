@@ -58,13 +58,6 @@ class SoundLevelCalibration {
         // TODO: Allow capturing wave data without doing glitch detection.
         CaptureHolder captureHolder = new CaptureHolder(0, "", false, false, false, context,
                 samplingRate);
-        // Workaround for b/68802649 (input level with AAudio is 3dB less than with OpenSL ES).
-        // Since the output level for both backends is the same, when calibrating with AAudio
-        // the suggested volume level will typically be 1 step higher and will cause clipping.
-        if (threadType == Constant.AUDIO_THREAD_TYPE_NATIVE_AAUDIO) {
-            threadType = Constant.AUDIO_THREAD_TYPE_NATIVE_SLES;
-        }
-        // FIXME assumes native thread type
         // TODO: Run for less than 1 second.
         mNativeAudioThread = new NativeAudioThread(threadType, samplingRate,
                 playerBufferSizeInBytes, recorderBufferSizeInBytes, micSource, performanceMode,

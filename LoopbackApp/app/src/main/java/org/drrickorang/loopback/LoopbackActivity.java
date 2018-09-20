@@ -29,6 +29,9 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -38,8 +41,8 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.Gravity;
@@ -59,7 +62,9 @@ import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 
 /**
@@ -155,6 +160,7 @@ public class LoopbackActivity extends Activity
     private static final String INTENT_ENABLE_WAVCAPTURE = "CaptureWavs";
     private static final String INTENT_NUM_CAPTURES = "NumCaptures";
     private static final String INTENT_WAV_DURATION = "WavDuration";
+    private static final String INTENT_USB_AUDIO_ROUTE = "USB";
 
     // for running the test using adb command
     private volatile boolean mIntentRunning; // if it is running triggered by intent with parameters
@@ -181,6 +187,10 @@ public class LoopbackActivity extends Activity
     private int     mBufferTestElapsedSeconds;
     private int     mBufferTestDurationInSeconds;
     private int     mBufferTestWavePlotDurationInSeconds;
+
+    // CTS Test Flag
+    private boolean mIsCTSTest;
+    private int     mCtsNumIterations;
 
     // threads that load CPUs
     private LoadThread[]     mLoadThreads;
@@ -306,8 +316,8 @@ public class LoopbackActivity extends Activity
                 break;
 
             case NativeAudioThread.LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_STARTED:
-                log("got message native latency test rec started!!");
                 showToast("Native Latency Test Started");
+                log("got message native latency test rec started!!");
                 resetResults();
                 refreshState();
                 refreshPlots();
@@ -430,6 +440,13 @@ public class LoopbackActivity extends Activity
                 case NativeAudioThread.
                         LOOPBACK_NATIVE_AUDIO_THREAD_MESSAGE_LATENCY_REC_COMPLETE_ERRORS:
                     setTransportButtonsState(LATENCY_TEST_ENDED);
+                    if (mIsCTSTest) {
+                        Intent intent = getIntent();
+                        intent.putExtra("RoundTripTime", mCorrelation.mEstimatedLatencyMs);
+                        intent.putExtra("Confidence", mCorrelation.mEstimatedLatencyConfidence);
+                        setResult(RESULT_OK, intent);
+                        finish();
+                    }
                     break;
 
                 // Buffer test started
@@ -600,6 +617,13 @@ public class LoopbackActivity extends Activity
      */
     private void applyIntent(Intent intent) {
         Bundle b = intent.getExtras();
+
+        if (b != null) {
+            for (String key: b.keySet()) {
+                Log.d (TAG, key + " is a key in the bundle");
+            }
+        }
+
         if (b != null && !mIntentRunning) {
             // adb shell am start -n org.drrickorang.loopback/.LoopbackActivity
             // --ei SF 48000 --es FileName test1 --ei RecorderBuffer 512 --ei PlayerBuffer 512
@@ -728,6 +752,10 @@ public class LoopbackActivity extends Activity
                 mIntentRunning = true;
             }
 
+            if (b.containsKey(INTENT_USB_AUDIO_ROUTE)) {
+                waitForUsbRoute();
+            }
+
             if (mIntentRunning || b.containsKey(INTENT_TEST_TYPE)) {
                 // run tests with provided or default parameters
                 refreshState();
@@ -744,6 +772,10 @@ public class LoopbackActivity extends Activity
                         break;
                     case Constant.LOOPBACK_PLUG_AUDIO_THREAD_TEST_TYPE_LATENCY:
                     default:
+                        if (b.containsKey(Constant.KEY_CTSINVOCATION)) {
+                            mIsCTSTest = true;
+                            mCtsNumIterations = b.getInt(Constant.KEY_NUMITERATIONS);
+                        }
                         startLatencyTest();
                         break;
                 }
@@ -801,18 +833,18 @@ public class LoopbackActivity extends Activity
     }
 
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // this means that this activity will not be recreated now, user is leaving it
-        // or the activity is otherwise finishing
-        if(isFinishing()) {
-            FragmentManager fm = getFragmentManager();
-            // we will not need this fragment anymore, this may also be a good place to signal
-            // to the retained fragment object to perform its own cleanup.
-            fm.beginTransaction().remove(mRetainedFragment).commit();
-        }
-    }
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        // this means that this activity will not be recreated now, user is leaving it
+//        // or the activity is otherwise finishing
+//        if(isFinishing()) {
+//            FragmentManager fm = getFragmentManager();
+//            // we will not need this fragment anymore, this may also be a good place to signal
+//            // to the retained fragment object to perform its own cleanup.
+//            fm.beginTransaction().remove(mRetainedFragment).commit();
+//        }
+//    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -1917,11 +1949,11 @@ public class LoopbackActivity extends Activity
     }
 
     public void showToast(final String msg) {
-        doShowToast(msg, false);
+        /* doShowToast(msg, false); */
     }
 
     public void showToastImportant(final String msg) {
-        doShowToast(msg, true);
+        /* doShowToast(msg, true); */
     }
 
     private void doShowToast(final String msg, boolean isImportant) {
@@ -2564,6 +2596,70 @@ public class LoopbackActivity extends Activity
         out.putInt("mBufferTestElapsedSeconds", mBufferTestElapsedSeconds);
         out.putInt("mBufferTestDurationInSeconds", mBufferTestDurationInSeconds);
         out.putInt("mBufferTestWavePlotDurationInSeconds", mBufferTestWavePlotDurationInSeconds);
+    }
+
+    private void waitForUsbRoute() {
+        log("Start checking for USB Route connection");
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        long startTime = System.currentTimeMillis();
+        int iter = 0;
+        while (true) {
+            if (System.currentTimeMillis() - startTime > 15 * 1000) {
+                log("15 Seconds has elapsed before USB_AUDIO_ROUTE is detected, continue test.");
+                break;
+            }
+            iter++;
+            AudioDeviceInfo[] devices;
+            boolean usb_available = false;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                devices = am.getDevices(AudioManager.GET_DEVICES_INPUTS);
+                for (AudioDeviceInfo devInfo : devices) {
+
+                    if (devInfo.getType() != AudioDeviceInfo.TYPE_BUILTIN_MIC && devInfo.getType() != AudioDeviceInfo.TYPE_TELEPHONY) {
+                        log(" USB Check iteration: " + String.valueOf(iter));
+                        log(" USB Check get type: " + String.valueOf(devInfo.getType()));
+                    }
+                    if (devInfo.getType() == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                            devInfo.getType() == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                        log(" USB Headset detected, continue test");
+                        usb_available = true;
+                        break;
+                    }
+                }
+
+            } else {
+                log("This system version does not support USB Audio Route check, continue test");
+                break;
+            }
+
+            log(" USB-> Check MediaRoute");
+            UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR1) {
+                HashMap<String, UsbDevice> usbDevices = manager.getDeviceList();
+                for (Map.Entry<String, UsbDevice> entry : usbDevices.entrySet()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        if (entry.getValue().getProductName().contains("USB Audio")) {
+                            log(" USB Headset detected inside UsbManager, continue test");
+                            usb_available = true;
+                            log(" USB list: key " + entry.getKey() + " and value: " + String.valueOf(entry.getValue()));
+                            break;
+                        }
+                    }
+                }
+
+            }
+            if (usb_available) {
+                long elapsed = System.currentTimeMillis() - startTime;
+                log("USB detection takes " + String.valueOf(elapsed) + " ms");
+                break;
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                log("Got interrupted during USB Audio Route check");
+                e.printStackTrace();
+            }
+        }
     }
 
 }
