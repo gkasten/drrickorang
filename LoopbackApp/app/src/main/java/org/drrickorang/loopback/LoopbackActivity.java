@@ -38,6 +38,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
@@ -210,7 +211,7 @@ public class LoopbackActivity extends Activity
         }
     };
 
-    private Handler mMessageHandler = new Handler() {
+    private Handler mMessageHandler = new Handler(Looper.getMainLooper()) {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
@@ -1100,7 +1101,7 @@ public class LoopbackActivity extends Activity
                 findViewById(R.id.zoomAndSaveControlPanel).setVisibility(View.INVISIBLE);
                 findViewById(R.id.resultSummary).setVisibility(View.INVISIBLE);
                 findViewById(R.id.glitchReportPanel).setVisibility(View.INVISIBLE);
-                bufferStart.setCompoundDrawablesWithIntrinsicBounds(
+                calibrationStart.setCompoundDrawablesWithIntrinsicBounds(
                         R.drawable.ic_stop, 0, 0, 0);
                 latencyStart.setEnabled(false);
                 bufferStart.setEnabled(false);
@@ -1111,7 +1112,7 @@ public class LoopbackActivity extends Activity
                 findViewById(R.id.zoomAndSaveControlPanel).setVisibility(View.VISIBLE);
                 findViewById(R.id.resultSummary).setVisibility(View.VISIBLE);
                 findViewById(R.id.glitchReportPanel).setVisibility(View.VISIBLE);
-                bufferStart.setCompoundDrawablesWithIntrinsicBounds(
+                calibrationStart.setCompoundDrawablesWithIntrinsicBounds(
                         R.drawable.ic_play_arrow, 0, 0, 0);
                 latencyStart.setEnabled(true);
                 bufferStart.setEnabled(canEnableBufferTest);
