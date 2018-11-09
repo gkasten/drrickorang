@@ -448,35 +448,6 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         //            e is number of seconds to record
         //            o is output .wav file name
 
-
-        //        // default values
-        //        SLuint32 rxBufCount = 1;     // -r#
-        //        SLuint32 txBufCount = 1;     // -t#
-        //        SLuint32 bufSizeInFrames = 240;  // -f#
-        //        SLuint32 channels = 1;       // -c#
-        //        SLuint32 sampleRate = 48000; // -s#
-        //        SLuint32 exitAfterSeconds = 3; // -e#
-        //        SLuint32 freeBufCount = 0;   // calculated
-        //        SLuint32 bufSizeInBytes = 0; // calculated
-        //        int injectImpulse = 300; // -i#i
-        //
-        //        // Storage area for the buffer queues
-        //        char **rxBuffers;
-        //        char **txBuffers;
-        //        char **freeBuffers;
-        //
-        //        // Buffer indices
-        //        SLuint32 rxFront;    // oldest recording
-        //        SLuint32 rxRear;     // next to be recorded
-        //        SLuint32 txFront;    // oldest playing
-        //        SLuint32 txRear;     // next to be played
-        //        SLuint32 freeFront;  // oldest free
-        //        SLuint32 freeRear;   // next to be freed
-        //
-        //        audio_utils_fifo fifo; //(*)
-        //        SLAndroidSimpleBufferQueueItf recorderBufferQueue;
-        //        SLBufferQueueItf playerBufferQueue;
-
         // default values
         pSles->rxBufCount = 1;     // -r#
         pSles->txBufCount = 1;     // -t#
@@ -490,25 +461,7 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         pSles->totalDiscardedInputFrames = 0;
         pSles->ignoreFirstFrames = ignoreFirstFrames;
 
-        // Storage area for the buffer queues
-        //        char **rxBuffers;
-        //        char **txBuffers;
-        //        char **freeBuffers;
-
-        // Buffer indices
-        pSles->rxFront;    // oldest recording
-        pSles->rxRear;     // next to be recorded
-        pSles->txFront;    // oldest playing
-        pSles->txRear;     // next to be played
-        pSles->freeFront;  // oldest free
-        pSles->freeRear;   // next to be freed
-
-        pSles->fifo; //(*)
         pSles->fifo2Buffer = NULL;  //this fifo is for sending data to java code (to plot it)
-        pSles->recorderBufferQueue;
-        pSles->playerBufferQueue;
-
-
 
         // compute total free buffers as -r plus -t
         pSles->freeBufCount = pSles->rxBufCount + pSles->txBufCount;
@@ -606,7 +559,6 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         SLresult result;
 
         // create engine
-        pSles->engineObject;
         result = slCreateEngine(&(pSles->engineObject), 0, NULL, 0, NULL, NULL);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
         result = (*(pSles->engineObject))->Realize(pSles->engineObject, SL_BOOLEAN_FALSE);
@@ -617,7 +569,6 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
 
         // create output mix
-        pSles->outputmixObject;
         result = (*engineEngine)->CreateOutputMix(engineEngine, &(pSles->outputmixObject), 0, NULL,
                 NULL);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
@@ -639,7 +590,10 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         pcm.samplesPerSec = pSles->sampleRate * 1000;
         pcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
         pcm.containerSize = 16;
-        pcm.channelMask = pSles->channels == 1 ? SL_SPEAKER_FRONT_CENTER :
+
+        // channelMask, refer to: https://android.googlesource.com/platform/
+        //    frameworks/wilhelm/+/refs/heads/marshmallow-release/src/android/channels.c#26
+        pcm.channelMask = pSles->channels == 1 ? SL_SPEAKER_FRONT_LEFT :
                 (SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT);
         pcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
         audiosrc.pLocator = &locator_bufferqueue_tx;
@@ -825,8 +779,6 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         cleanup:
 
         SLES_PRINTF("Finished initialization with status: %d", status);
-
-        int xx = 1;
 
     }
     return status;

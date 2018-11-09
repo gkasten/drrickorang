@@ -74,7 +74,6 @@ class LatencyTest : public LoopbackTest {
 
     AudioBufferView<sample_t> writeCallback(size_t expectedFrames);
 
-    LatencyTestContext* mTestCtx;
     int mDrainInput;
     int mInputFramesToDiscard;
     int mInitialSilenceFrameCount;
