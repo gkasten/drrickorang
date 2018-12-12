@@ -85,7 +85,7 @@ void LoopbackTest::receiveRecording(size_t framesRead) {
 
 LatencyTest::LatencyTest(SoundSystem* soundSys, LatencyTestContext* testCtx)
         : LoopbackTest(soundSys, testCtx),
-          mTestCtx(testCtx),
+          //mTestCtx(testCtx),
           mDrainInput(true),
           mInputFramesToDiscard(testCtx->getInputFramesToDiscard()),
           mInitialSilenceFrameCount(wholeMultiplier(

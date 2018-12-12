@@ -496,6 +496,7 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         //        char **freeBuffers;
 
         // Buffer indices
+#if 0
         pSles->rxFront;    // oldest recording
         pSles->rxRear;     // next to be recorded
         pSles->txFront;    // oldest playing
@@ -504,9 +505,12 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         pSles->freeRear;   // next to be freed
 
         pSles->fifo; //(*)
+#endif
         pSles->fifo2Buffer = NULL;  //this fifo is for sending data to java code (to plot it)
+#if 0
         pSles->recorderBufferQueue;
         pSles->playerBufferQueue;
+#endif
 
 
 
@@ -606,7 +610,9 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         SLresult result;
 
         // create engine
+#if 0
         pSles->engineObject;
+#endif
         result = slCreateEngine(&(pSles->engineObject), 0, NULL, 0, NULL, NULL);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
         result = (*(pSles->engineObject))->Realize(pSles->engineObject, SL_BOOLEAN_FALSE);
@@ -617,7 +623,9 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
 
         // create output mix
+#if 0
         pSles->outputmixObject;
+#endif
         result = (*engineEngine)->CreateOutputMix(engineEngine, &(pSles->outputmixObject), 0, NULL,
                 NULL);
         ASSERT_EQ(SL_RESULT_SUCCESS, result);
@@ -825,8 +833,6 @@ static int slesCreateServer(sles_data *pSles, int samplingRate, int frameCount, 
         cleanup:
 
         SLES_PRINTF("Finished initialization with status: %d", status);
-
-        int xx = 1;
 
     }
     return status;

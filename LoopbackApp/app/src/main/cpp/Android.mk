@@ -22,6 +22,9 @@ LOCAL_SRC_FILES   := \
 LOCAL_C_INCLUDES := \
     frameworks/wilhelm/include
 
+LOCAL_C_INCLUDES += \
+    frameworks/av/media/libaaudio/include
+
 LOCAL_LDLIBS += -lOpenSLES -ldl -llog -landroid
 
 #LOCAL_LDFLAGS += -Wl,--hash-style=sysv
